@@ -1,5 +1,19 @@
 from django.shortcuts import render
-from django.http import HttpResponse
+from rest_framework import generics
+from .models import User, Family
+from .serializers import UserSerializer, FamilySerializer
 
-def home(request):
-    return HttpResponse("Hello")
+
+class UserListCreateView(generics.ListCreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+
+class UserRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+
+class FamilyView(generics.ListAPIView):
+    queryset = Family.objects.all()
+    serializer_class = FamilySerializer
