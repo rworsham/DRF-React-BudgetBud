@@ -1,6 +1,8 @@
+from unicodedata import category
+
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Family
+from .models import Family, Category, Budget, Transaction, Account
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,3 +31,14 @@ class FamilySerializer(serializers.ModelSerializer):
             instance.members.set(members_data)
 
         return instance
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["id", "name", "user"]
+
+
+class BudgetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Budget
+        fields = ["id", "name", "total_amount"]

@@ -1,7 +1,7 @@
 from django.shortcuts import render
-from rest_framework import generics
-from .models import User, Family
-from .serializers import UserSerializer, FamilySerializer
+from rest_framework import generics, viewsets
+from .models import User, Family, Category, Budget, Transaction, Account
+from .serializers import UserSerializer, FamilySerializer, CategorySerializer, BudgetSerializer
 
 
 class UserListCreateView(generics.ListCreateAPIView):
@@ -17,3 +17,13 @@ class UserRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 class FamilyView(generics.ListAPIView):
     queryset = Family.objects.all()
     serializer_class = FamilySerializer
+
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+
+class BudgetViewSet(viewsets.ModelViewSet):
+    queryset = Budget.objects.all()
+    serializer_class = BudgetSerializer
