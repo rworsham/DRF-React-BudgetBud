@@ -1,7 +1,8 @@
 from django.shortcuts import render
 from rest_framework import generics, viewsets
 from .models import User, Family, Category, Budget, Transaction, Account
-from .serializers import UserSerializer, FamilySerializer, CategorySerializer, BudgetSerializer
+from .serializers import UserSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, TransactionSerializer, \
+    AccountSerializer
 
 
 class UserListCreateView(generics.ListCreateAPIView):
@@ -27,3 +28,13 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class BudgetViewSet(viewsets.ModelViewSet):
     queryset = Budget.objects.all()
     serializer_class = BudgetSerializer
+
+
+class TransactionViewSet(viewsets.ModelViewSet):
+    queryset = Transaction.objects.all()
+    serializer_class = TransactionSerializer
+
+
+class AccountViewSet(viewsets.ModelViewSet):
+    queryset = Account.objects.all()
+    serializer_class = AccountSerializer

@@ -42,3 +42,36 @@ class BudgetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Budget
         fields = ["id", "name", "total_amount"]
+
+
+class TransactionSerializer(serializers.ModelSerializer):
+    category = serializers.StringRelatedField()
+    budget = serializers.StringRelatedField()
+
+    class Meta:
+        model = Transaction
+        fields = [
+            'id', 'date', 'amount', 'transaction_type', 'description',
+            'category', 'budget', 'is_recurring', 'recurring_type', 'next_occurrence'
+        ]
+
+    def validate(self, data):
+        if data.get('is_recurring') and not data.get('next_occurrence'):
+            raise serializers.ValidationError("Next occurrence must be set for recurring transactions.")
+        return data
+
+    def create(self, validated_data):
+        transaction = Transaction.objects.create(**validated_data)
+        return transaction
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
+
+
+class AccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Account
+        fields = ["id", "name", "balance", "user"]
