@@ -11,6 +11,10 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -41,6 +45,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
@@ -56,15 +61,21 @@ MIDDLEWARE = [
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'budget_bud_api.authentication.JWTCookieAuthentication',
     ],
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
+    "https://localhost:3000",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SIMPLE_JWT = {
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': os.getenv('COOKIE_SIGNING_KEY'),
+}
 
 ROOT_URLCONF = 'budget_bud.urls'
 

@@ -27,7 +27,7 @@ class LoginView(APIView):
             response.set_cookie(
                 'access_token', access_token,
                 httponly=True,
-                secure=settings.SECURE_SSL_REDIRECT,
+                secure=True,
                 samesite='None',
                 max_age=3600
             )
@@ -35,7 +35,7 @@ class LoginView(APIView):
             response.set_cookie(
                 'refresh_token', refresh_token,
                 httponly=True,
-                secure=settings.SECURE_SSL_REDIRECT,
+                secure=True,
                 samesite='None',
                 max_age=3600
             )
