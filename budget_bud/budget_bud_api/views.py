@@ -73,8 +73,15 @@ class CategoryViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 class BudgetViewSet(viewsets.ModelViewSet):
-    queryset = Budget.objects.all()
     serializer_class = BudgetSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Budget.objects.filter(user=user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 class TransactionViewSet(viewsets.ModelViewSet):

@@ -6,7 +6,7 @@ from .views import UserListCreateView, UserRetrieveUpdateDestroyView, FamilyView
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename="category")
-router.register(r'budget', BudgetViewSet)
+router.register(r'budget', BudgetViewSet, basename="budget")
 router.register(r'transaction', TransactionViewSet)
 router.register(r'account', AccountViewSet)
 
