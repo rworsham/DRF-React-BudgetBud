@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from datetime import timedelta
 from rest_framework import generics, viewsets
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -29,7 +30,7 @@ class LoginView(APIView):
                 httponly=True,
                 secure=True,
                 samesite='None',
-                max_age=3600
+                max_age=timedelta(minutes=30)
             )
 
             response.set_cookie(
@@ -37,7 +38,7 @@ class LoginView(APIView):
                 httponly=True,
                 secure=True,
                 samesite='None',
-                max_age=3600
+                max_age=timedelta(days=7)
             )
 
             return response
