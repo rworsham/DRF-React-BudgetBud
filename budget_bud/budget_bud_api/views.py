@@ -30,7 +30,8 @@ class LoginView(APIView):
                 httponly=True,
                 secure=True,
                 samesite='None',
-                max_age=timedelta(minutes=30)
+                max_age=timedelta(minutes=30),
+                path='/'
             )
 
             response.set_cookie(
@@ -38,7 +39,8 @@ class LoginView(APIView):
                 httponly=True,
                 secure=True,
                 samesite='None',
-                max_age=timedelta(days=7)
+                max_age=timedelta(days=7),
+                path='/'
             )
 
             return response
