@@ -1,7 +1,5 @@
-from django.shortcuts import render
 from datetime import timedelta
 from rest_framework import generics, viewsets
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import User, Family, Category, Budget, Transaction, Account
 from .serializers import UserSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, TransactionSerializer, \
@@ -9,8 +7,6 @@ from .serializers import UserSerializer, FamilySerializer, CategorySerializer, B
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from django.conf import settings
 from django.http import JsonResponse
 
 class LoginView(APIView):
