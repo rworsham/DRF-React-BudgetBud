@@ -12,7 +12,7 @@ router.register(r'account', AccountViewSet)
 
 urlpatterns = [
     path('api/users/', UserListCreateView.as_view(), name='user-list-create'),
-    path('api/users/<int:pk>/', UserRetrieveUpdateDestroyView.as_view(), name='user-detail'),
+    path('api/user/', UserRetrieveUpdateDestroyView.as_view(), name='user-detail'),
     path('api/family', FamilyView.as_view()),
     path('api/', include(router.urls)),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

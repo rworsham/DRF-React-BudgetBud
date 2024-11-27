@@ -11,19 +11,22 @@ class UserListCreateView(generics.ListCreateAPIView):
 
 
 class UserRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = User.objects.all()
     serializer_class = UserSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(id=self.request.user.id)
+
+    def get_object(self):
+        return self.request.user
 
 
 class FamilyView(generics.ListAPIView):
-    permission_classes = [IsAuthenticated]
     queryset = Family.objects.all()
     serializer_class = FamilySerializer
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
@@ -34,7 +37,6 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 class BudgetViewSet(viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
