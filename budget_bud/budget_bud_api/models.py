@@ -50,6 +50,7 @@ class Transaction(models.Model):
     is_recurring = models.BooleanField(default=False)
     recurring_type = models.CharField(max_length=10, choices=RECURRING_TYPES, blank=True, null=True)
     next_occurrence = models.DateField(blank=True, null=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
 
     def __str__(self):
         return f"{self.transaction_type.title()} - {self.amount}"

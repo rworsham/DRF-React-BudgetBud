@@ -51,6 +51,14 @@ class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
 
 
+class AllTransactionViewSet(viewsets.ModelViewSet):
+    serializer_class = TransactionSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return Transaction.objects.filter(user=user)
+
+
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
     serializer_class = AccountSerializer
