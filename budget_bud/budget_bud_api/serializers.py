@@ -1,5 +1,3 @@
-from unicodedata import category
-
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import Family, Category, Budget, Transaction, Account
@@ -45,8 +43,8 @@ class BudgetSerializer(serializers.ModelSerializer):
 
 
 class TransactionSerializer(serializers.ModelSerializer):
-    category = serializers.StringRelatedField()
-    budget = serializers.StringRelatedField()
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
+    budget = serializers.PrimaryKeyRelatedField(queryset=Budget.objects.all())
 
     class Meta:
         model = Transaction
@@ -56,8 +54,11 @@ class TransactionSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, data):
-        if data.get('is_recurring') and not data.get('next_occurrence'):
-            raise serializers.ValidationError("Next occurrence must be set for recurring transactions.")
+        if data.get('is_recurring'):
+            if not data.get('recurring_type'):
+                raise serializers.ValidationError("Recurring type is required for recurring transactions.")
+            if not data.get('next_occurrence'):
+                raise serializers.ValidationError("Next occurrence must be set for recurring transactions.")
         return data
 
     def create(self, validated_data):
