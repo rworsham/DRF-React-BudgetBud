@@ -51,6 +51,7 @@ class Transaction(models.Model):
     recurring_type = models.CharField(max_length=10, choices=RECURRING_TYPES, blank=True, null=True)
     next_occurrence = models.DateField(blank=True, null=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
+    family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name='transactions', null=True, blank=True)
 
     def __str__(self):
         return f"{self.transaction_type.title()} - {self.amount}"
@@ -74,6 +75,7 @@ class Account(models.Model):
     name = models.CharField(max_length=100)
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='accounts')
+    family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name='accounts', null=True, blank=True)
 
     def __str__(self):
         return self.name
