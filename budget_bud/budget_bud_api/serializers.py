@@ -43,8 +43,9 @@ class BudgetSerializer(serializers.ModelSerializer):
 
 
 class TransactionSerializer(serializers.ModelSerializer):
-    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
-    budget = serializers.PrimaryKeyRelatedField(queryset=Budget.objects.all())
+    category = serializers.CharField(source='category.name')
+    budget = serializers.CharField(source='budget.name')
+    next_occurrence = serializers.DateField(required=False, allow_null=True)
 
     class Meta:
         model = Transaction
@@ -59,11 +60,31 @@ class TransactionSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Recurring type is required for recurring transactions.")
             if not data.get('next_occurrence'):
                 raise serializers.ValidationError("Next occurrence must be set for recurring transactions.")
+        else:
+            if 'next_occurrence' in data and data['next_occurrence'] is not None:
+                raise serializers.ValidationError(
+                    "Next occurrence should not be provided for non-recurring transactions.")
+            data.pop('next_occurrence', None)
         return data
 
     def create(self, validated_data):
         user = self.context['request'].user
+
+        category_name = validated_data.get('category')
+        budget_name = validated_data.get('budget')
+
+        category = Category.objects.filter(user=user, name=category_name['name']).first()
+        budget = Budget.objects.filter(user=user, name=budget_name['name']).first()
+
+        if not category:
+            raise serializers.ValidationError(f"Category '{category_name}' does not exist.")
+        if not budget:
+            raise serializers.ValidationError(f"Budget '{budget_name}' does not exist.")
+
+        validated_data['category'] = category
+        validated_data['budget'] = budget
         validated_data['user'] = user
+
         transaction = Transaction.objects.create(**validated_data)
         return transaction
 

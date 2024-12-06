@@ -49,8 +49,12 @@ class BudgetViewSet(viewsets.ModelViewSet):
 
 
 class TransactionViewSet(viewsets.ModelViewSet):
-    queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Transaction.objects.filter(user=user)
 
 
 class AllTransactionViewSet(viewsets.ModelViewSet):
