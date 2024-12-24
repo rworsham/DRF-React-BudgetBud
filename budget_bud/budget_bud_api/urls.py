@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .views import UserListCreateView, UserRetrieveUpdateDestroyView, FamilyView, CategoryViewSet, BudgetViewSet, \
+from .views import UserListCreateView,UserCreateView, UserRetrieveUpdateDestroyView, FamilyView, CategoryViewSet, BudgetViewSet, \
     TransactionViewSet, AccountViewSet, AllTransactionViewSet, TransactionBarChartViewSet, TransactionTableViewSet, \
     TransactionPieChartViewSet
 
@@ -20,6 +20,7 @@ urlpatterns = [
     path('api/transaction-bar-chart/', TransactionBarChartViewSet.as_view(), name='transaction-bar-chart'),
     path('api/transaction-table-view/', TransactionTableViewSet.as_view(), name='transaction-table-view'),
     path('api/transaction-pie-chart/', TransactionPieChartViewSet.as_view(), name='transaction-pie-chart'),
+    path('api/user/create/', UserCreateView.as_view(), name='user-create'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]

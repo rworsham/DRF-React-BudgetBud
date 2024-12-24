@@ -4,11 +4,26 @@ from rest_framework import generics, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from datetime import datetime, timedelta
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Sum
 from .models import User, Family, Category, Budget, Transaction, Account
-from .serializers import UserSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, TransactionSerializer, \
+from .serializers import UserSerializer, UserCreateSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, TransactionSerializer, \
     AccountSerializer
+
+class UserCreateView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = UserCreateSerializer(data=request.data)
+
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response({
+                'username': user.username,
+                'email': user.email
+            })
+
+        return Response(serializer.errors)
 
 
 class UserListCreateView(generics.ListCreateAPIView):
