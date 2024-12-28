@@ -6,6 +6,10 @@ from rest_framework.views import APIView
 from datetime import datetime, timedelta
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Sum
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.pdfgen import canvas
+from django.http import HttpResponse
+from io import BytesIO
 from .models import User, Family, Category, Budget, Transaction, Account
 from .serializers import UserSerializer, UserCreateSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, TransactionSerializer, \
     AccountSerializer
@@ -184,24 +188,17 @@ class TransactionTableViewSet(APIView):
 
     def get_queryset(self, start_date=None, end_date=None):
         user = self.request.user
-        print(f"Filtering transactions for user: {user}")
-        print(f"Start date: {start_date}, End date: {end_date}")
-
         if not start_date or not end_date:
             current_date = datetime.today()
             start_date = current_date.replace(day=1).date()
             next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
             end_date = (next_month - timedelta(days=1)).date()
 
-        print(f"Querying transactions with dates: {start_date} to {end_date}")
-
         queryset = Transaction.objects.filter(
             user=user,
             date__gte=start_date,
             date__lte=end_date
         )
-
-        print(f"Queryset after filtering: {queryset}")
         return queryset
 
     def post(self, request, *args, **kwargs):
@@ -221,22 +218,21 @@ class TransactionTableViewSet(APIView):
                 end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
         except ValueError:
             return Response(
-                {"detail": "Invalid date format. Use 'YYYY-MM_DD'."},
+                {"detail": "Invalid date format. Use 'YYYY-MM-DD'."},
                 status=400
             )
-
-        print(f"Converted Start Date; {start_date}, End date: {end_date}")
 
         queryset = self.get_queryset(start_date=start_date, end_date=end_date)
 
         aggregated_data = (
             queryset
-            .values('id','amount', 'budget__name', 'category__name', 'date', 'transaction_type', 'is_recurring',
+            .values('id', 'amount', 'budget__name', 'category__name', 'date', 'transaction_type', 'is_recurring',
                     'next_occurrence', 'description')
             .order_by('date')
         )
 
-        print(f"Aggregated Data: {aggregated_data}")
+        if request.data.get('format') == 'pdf':
+            return self.create_pdf(aggregated_data, start_date, end_date)
 
         response_data = [
             {
@@ -253,9 +249,55 @@ class TransactionTableViewSet(APIView):
             for entry in aggregated_data
         ]
 
-        print(f"Response data: {response_data}")
-
         return Response(response_data)
+
+    def create_pdf(self, aggregated_data, start_date, end_date):
+        buffer = BytesIO()
+
+        p = canvas.Canvas(buffer, pagesize=landscape(letter))
+        margin_left = 30
+        margin_top = 550
+        column_width = 70
+        headers = ["ID", "Amount", "Description", "Budget", "Category", "Date", "Type", "Recurring?",
+                   "Next Occurrence"]
+
+        p.setFont("Helvetica", 16)
+        p.drawString(margin_left + 100, margin_top, f"Transaction Report: {start_date} to {end_date}")
+
+        p.setFont("Helvetica", 12)
+        y_position = margin_top - 30
+
+        for index, header in enumerate(headers):
+            p.drawString(margin_left + (index * column_width), y_position, header)
+
+        y_position -= 20
+
+        for entry in aggregated_data:
+            p.drawString(margin_left, y_position, str(entry['id']))
+            p.drawString(margin_left + column_width, y_position, str(entry['amount']))
+            p.drawString(margin_left + 2 * column_width, y_position, entry['description'][:30])
+            p.drawString(margin_left + 3 * column_width, y_position, entry['budget__name'])
+            p.drawString(margin_left + 4 * column_width, y_position, entry['category__name'])
+            p.drawString(margin_left + 5 * column_width, y_position, str(entry['date']))
+            p.drawString(margin_left + 6 * column_width, y_position, entry['transaction_type'])
+            p.drawString(margin_left + 7 * column_width, y_position, str(entry['is_recurring']))
+            p.drawString(margin_left + 8 * column_width, y_position,
+                         str(entry['next_occurrence']) if entry['next_occurrence'] else "N/A")
+
+            y_position -= 20
+
+            if y_position < 100:
+                p.showPage()
+                y_position = margin_top
+                for index, header in enumerate(headers):
+                    p.drawString(margin_left + (index * column_width), y_position, header)
+                y_position -= 20
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+        response = HttpResponse(buffer.read(), content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="transaction_report.pdf"'
+        return response
 
 
 class TransactionPieChartViewSet(APIView):
@@ -333,3 +375,18 @@ class TransactionPieChartViewSet(APIView):
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
     serializer_class = AccountSerializer
+
+
+def generate_pdf(request):
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+
+    p.drawString(100, 750, "Hello, World! This is a dynamically generated PDF.")
+    p.showPage()
+    p.save()
+
+    buffer.seek(0)
+
+    response = HttpResponse(buffer.read(), content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="generated_file.pdf"'
+    return response
