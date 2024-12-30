@@ -70,6 +70,56 @@ class BudgetViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+class BudgetTransactionView(APIView):
+    def post(self, request, *args, **kwargs):
+        start_date = request.data.get('start_date', None)
+        end_date = request.data.get('end_date', None)
+
+        if not start_date or not end_date:
+            current_date = datetime.today()
+            start_date = current_date.replace(day=1).date()
+            next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+            end_date = (next_month - timedelta(days=1)).date()
+
+        try:
+            if isinstance(start_date, str):
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            if isinstance(end_date, str):
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {"detail": "Invalid date format. Use 'YYYY-MM-DD'."},
+                status=400
+            )
+
+        user = request.user
+
+        transaction_queryset = Transaction.objects.filter(
+            user=user,
+            date__gte=start_date,
+            date__lte=end_date
+        )
+
+        transaction_sum = transaction_queryset.aggregate(total_amount=Sum('amount'))['total_amount']
+
+        budget_queryset = Budget.objects.filter(user=user)
+        budgets_remaining = []
+
+        for budget in budget_queryset:
+            total_remaining = budget.total_amount - (transaction_sum if transaction_sum else 0)
+            budgets_remaining.append({
+                'budget_name': budget.name,
+                'starting_budget': budget.total_amount,
+                'remaining_budget': total_remaining
+            })
+
+        transaction_serializer = TransactionSerializer(transaction_queryset, many=True)
+
+        return Response({
+            'transactions': transaction_serializer.data,
+            'budgets_remaining': budgets_remaining
+        })
+
 
 class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
