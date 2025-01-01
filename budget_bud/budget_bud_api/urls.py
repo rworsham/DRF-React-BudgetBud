@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import UserListCreateView,UserCreateView, UserRetrieveUpdateDestroyView, FamilyView, CategoryViewSet, BudgetViewSet, \
     TransactionViewSet, AccountViewSet, AllTransactionViewSet, TransactionBarChartViewSet, TransactionTableViewSet, \
-    TransactionPieChartViewSet
+    TransactionPieChartViewSet, BudgetTransactionView
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename="category")
@@ -17,6 +17,7 @@ urlpatterns = [
     path('api/users/', UserListCreateView.as_view(), name='user-list-create'),
     path('api/user/', UserRetrieveUpdateDestroyView.as_view(), name='user-detail'),
     path('api/family', FamilyView.as_view()),
+    path('api/budget-transaction-overview/', BudgetTransactionView.as_view(), name='budget-transaction-overview'),
     path('api/transaction-bar-chart/', TransactionBarChartViewSet.as_view(), name='transaction-bar-chart'),
     path('api/transaction-table-view/', TransactionTableViewSet.as_view(), name='transaction-table-view'),
     path('api/transaction-pie-chart/', TransactionPieChartViewSet.as_view(), name='transaction-pie-chart'),

@@ -71,6 +71,8 @@ class BudgetViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 class BudgetTransactionView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, *args, **kwargs):
         start_date = request.data.get('start_date', None)
         end_date = request.data.get('end_date', None)
