@@ -74,6 +74,7 @@ class BudgetTransactionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
+        user = self.request.user
         start_date = request.data.get('start_date', None)
         end_date = request.data.get('end_date', None)
 
@@ -94,25 +95,33 @@ class BudgetTransactionView(APIView):
                 status=400
             )
 
-        user = request.user
-
         transaction_queryset = Transaction.objects.filter(
             user=user,
             date__gte=start_date,
             date__lte=end_date
         )
 
-        transaction_sum = transaction_queryset.aggregate(total_amount=Sum('amount'))['total_amount']
-
         budget_queryset = Budget.objects.filter(user=user)
         budgets_remaining = []
 
         for budget in budget_queryset:
-            total_remaining = budget.total_amount - (transaction_sum if transaction_sum else 0)
+            budget_transactions = Transaction.objects.filter(budget=budget, date__range=[start_date,
+                                                                                         end_date])
+
+            total_income = budget_transactions.filter(transaction_type='income').aggregate(Sum('amount'))[
+                               'amount__sum'] or 0
+
+            total_expense = budget_transactions.filter(transaction_type='expense').aggregate(Sum('amount'))[
+                                'amount__sum'] or 0
+
+            total_remaining = budget.total_amount - total_expense
+
             budgets_remaining.append({
                 'budget_name': budget.name,
                 'starting_budget': budget.total_amount,
-                'remaining_budget': total_remaining
+                'remaining_budget': total_remaining,
+                'total_income': total_income,
+                'total_expense': total_expense,
             })
 
         transaction_serializer = TransactionSerializer(transaction_queryset, many=True)
