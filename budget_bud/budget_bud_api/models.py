@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 class Family(models.Model):
-    name = models.CharField(max_length=30, default="")
+    name = models.CharField(max_length=30)
     members = models.ManyToManyField(User, related_name='families')
 
     def __str__(self):

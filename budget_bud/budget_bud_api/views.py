@@ -438,6 +438,25 @@ class AccountViewSet(viewsets.ModelViewSet):
     serializer_class = AccountSerializer
 
 
+class FamilyCreateViewSet(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        serializer = FamilySerializer(data=request.data)
+
+        if serializer.is_valid():
+            family = serializer.save()
+            family.members.add(user)
+
+            return Response({
+                'family_name': family.name,
+                'family_members': [member.username for member in family.members.all()],
+            }, status=200)
+
+        return Response(serializer.errors, status=400)
+
+
 def generate_pdf(request):
     buffer = BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
