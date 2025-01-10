@@ -46,8 +46,11 @@ class UserRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class FamilyView(generics.ListAPIView):
-    queryset = Family.objects.all()
     serializer_class = FamilySerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return Family.objects.filter(members=user)
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -442,16 +445,28 @@ class FamilyCreateViewSet(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        user = request.user
+        user = self.request.user
+
+        if user.families.exists():
+            return Response(
+                {'detail': 'You are already a member of a family and cannot create a new one.'},
+                status=400
+            )
+
+        name = request.data.get('name')
+        if not name:
+            return Response(
+                {'detail': 'Family name is required.'},
+                status=400
+            )
+
         serializer = FamilySerializer(data=request.data)
 
         if serializer.is_valid():
             family = serializer.save()
             family.members.add(user)
-
             return Response({
-                'family_name': family.name,
-                'family_members': [member.username for member in family.members.all()],
+                'family_name': family.name
             }, status=200)
 
         return Response(serializer.errors, status=400)

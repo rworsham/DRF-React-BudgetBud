@@ -37,27 +37,15 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email']
 
 class FamilySerializer(serializers.ModelSerializer):
-    members = UserSerializer(many=True)
 
     class Meta:
         model = Family
-        fields = ['id', 'name', 'members']
+        fields = ['id', 'name']
 
     def create(self, validated_data):
-        members_data = validated_data.pop('members')
         family = Family.objects.create(**validated_data)
-        family.members.set(members_data)
         return family
 
-    def update(self, instance, validated_data):
-        members_data = validated_data.pop('members', None)
-        instance.name = validated_data.get('name', instance.name)
-        instance.save()
-
-        if members_data is not None:
-            instance.members.set(members_data)
-
-        return instance
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:

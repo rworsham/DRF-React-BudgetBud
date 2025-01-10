@@ -16,7 +16,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/users/', UserListCreateView.as_view(), name='user-list-create'),
     path('api/user/', UserRetrieveUpdateDestroyView.as_view(), name='user-detail'),
-    path('api/family', FamilyView.as_view()),
+    path('api/family/', FamilyView.as_view()),
     path('api/family/create/', FamilyCreateViewSet.as_view(), name='family-create'),
     path('api/budget-transaction-overview/', BudgetTransactionView.as_view(), name='budget-transaction-overview'),
     path('api/transaction-bar-chart/', TransactionBarChartViewSet.as_view(), name='transaction-bar-chart'),
