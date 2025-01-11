@@ -10,12 +10,12 @@ router.register(r'categories', CategoryViewSet, basename="category")
 router.register(r'budget', BudgetViewSet, basename="budget")
 router.register(r'transaction', TransactionViewSet, basename='transaction')
 router.register(r'transactions', AllTransactionViewSet, basename='all_transactions')
-router.register(r'account', AccountViewSet)
 
 urlpatterns = [
     path('api/', include(router.urls)),
     path('api/users/', UserListCreateView.as_view(), name='user-list-create'),
     path('api/user/', UserRetrieveUpdateDestroyView.as_view(), name='user-detail'),
+    path('api/accounts/', AccountViewSet.as_view(), name='accounts'),
     path('api/family/', FamilyView.as_view()),
     path('api/family/create/', FamilyCreateViewSet.as_view(), name='family-create'),
     path('api/budget-transaction-overview/', BudgetTransactionView.as_view(), name='budget-transaction-overview'),

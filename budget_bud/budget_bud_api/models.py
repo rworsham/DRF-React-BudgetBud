@@ -79,3 +79,22 @@ class Account(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_balance_at_date(self, date):
+        try:
+            balance_history = self.balancehistory_set.filter(date__lte=date).latest('date')
+            return balance_history.balance
+        except BalanceHistory.DoesNotExist:
+            return self.balance
+
+
+class BalanceHistory(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='balance_history')
+    balance = models.DecimalField(max_digits=10, decimal_places=2)
+    date = models.DateField(default=timezone.now)
+
+    def __str__(self):
+        return f'{self.account.name} - {self.balance} on {self.date}'
+
+    class Meta:
+        ordering = ['date']

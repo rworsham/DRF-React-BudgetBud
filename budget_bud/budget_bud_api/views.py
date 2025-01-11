@@ -1,5 +1,6 @@
 from unicodedata import category
 
+from django.core.serializers import serialize
 from rest_framework import generics, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -436,9 +437,28 @@ class TransactionPieChartViewSet(APIView):
         return Response(response_data)
 
 
-class AccountViewSet(viewsets.ModelViewSet):
-    queryset = Account.objects.all()
-    serializer_class = AccountSerializer
+class AccountViewSet(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self, request):
+        user = self.request.user
+        return Account.objects.filter(user=user)
+
+    def get(self, request, *args, **kwargs):
+        accounts = self.get_queryset(request)
+        serializer = AccountSerializer(accounts, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, *args, **kwargs):
+        serializer = AccountSerializer(data=request.data)
+
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response(
+                {'name': user.name},
+            status=200
+            )
+        return Response(serializer.errors, status=400)
 
 
 class FamilyCreateViewSet(APIView):
