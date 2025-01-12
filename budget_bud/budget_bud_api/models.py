@@ -47,6 +47,7 @@ class Transaction(models.Model):
     description = models.TextField(blank=True)
     category = models.ForeignKey('Category', on_delete=models.CASCADE, related_name='transactions')
     budget = models.ForeignKey('Budget', on_delete=models.CASCADE, related_name='transactions')
+    account = models.ForeignKey('Account', on_delete=models.CASCADE, related_name='transactions')
     is_recurring = models.BooleanField(default=False)
     recurring_type = models.CharField(max_length=10, choices=RECURRING_TYPES, blank=True, null=True)
     next_occurrence = models.DateField(blank=True, null=True)
@@ -69,6 +70,19 @@ class Transaction(models.Model):
             else:
                 self.next_occurrence = None
         super().save(*args, **kwargs)
+
+        account = self.account
+        if self.transaction_type == 'income':
+            new_balance = account.balance + self.amount
+        elif self.transaction_type == 'expense':
+            new_balance = account.balance - self.amount
+        else:
+            raise ValueError("Invalid transaction type.")
+
+        BalanceHistory.objects.create(account=account, balance=new_balance, date=self.date)
+
+        account.balance = new_balance
+        account.save()
 
 
 class Account(models.Model):

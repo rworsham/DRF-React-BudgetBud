@@ -11,7 +11,7 @@ from reportlab.lib.pagesizes import letter, landscape
 from reportlab.pdfgen import canvas
 from django.http import HttpResponse
 from io import BytesIO
-from .models import User, Family, Category, Budget, Transaction, Account
+from .models import User, Family, Category, Budget, Transaction, Account, BalanceHistory
 from .serializers import UserSerializer, UserCreateSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, TransactionSerializer, \
     AccountSerializer
 
@@ -55,6 +55,7 @@ class FamilyView(generics.ListAPIView):
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = CategorySerializer
 
     def get_queryset(self):
@@ -65,6 +66,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 class BudgetViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = BudgetSerializer
 
     def get_queryset(self):
@@ -144,6 +146,54 @@ class TransactionViewSet(viewsets.ModelViewSet):
         user = self.request.user
         return Transaction.objects.filter(user=user)
 
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        data = request.data
+
+        account_id = data.get('account')
+        if not account_id:
+            return Response({"error": "Account is required."}, status=400)
+
+        account = Account.objects.filter(id=account_id, user=user).first()
+        if not account:
+            return Response({"error": "Account does not exist or does not belong to the user."},
+                            status=400)
+
+        category_id = data.get('category')
+        budget_id = data.get('budget')
+
+        category = Category.objects.filter(user=user, id=category_id).first()
+        budget = Budget.objects.filter(user=user, id=budget_id).first()
+
+        if not category:
+            return Response({"error": f"Category '{category_id}' does not exist."},
+                            status=400)
+        if not budget:
+            return Response({"error": f"Budget '{budget_id}' does not exist."}, status=400)
+
+        data['category'] = category.id
+        data['budget'] = budget.id
+        data['user'] = user
+
+        serializer = self.get_serializer(data=data)
+        if serializer.is_valid():
+            transaction = serializer.save()
+
+            if transaction.transaction_type == 'income':
+                new_balance = account.balance + transaction.amount
+            elif transaction.transaction_type == 'expense':
+                new_balance = account.balance - transaction.amount
+            else:
+                return Response({"error": "Invalid transaction type."}, status=400)
+
+            BalanceHistory.objects.create(account=account, balance=new_balance, date=transaction.date)
+
+            account.balance = new_balance
+            account.save()
+
+            return Response(serializer.data, status=200)
+
+        return Response(serializer.errors, status=400)
 
 class AllTransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
@@ -291,7 +341,7 @@ class TransactionTableViewSet(APIView):
 
         aggregated_data = (
             queryset
-            .values('id', 'amount', 'budget__name', 'category__name', 'date', 'transaction_type', 'is_recurring',
+            .values('id', 'amount', 'budget__name', 'category__name', 'account__name', 'date', 'transaction_type', 'is_recurring',
                     'next_occurrence', 'description')
             .order_by('date')
         )
@@ -306,6 +356,7 @@ class TransactionTableViewSet(APIView):
                 "description": entry['description'],
                 "budget": entry['budget__name'],
                 "category": entry['category__name'],
+                "account": entry['account__name'],
                 "date": entry['date'],
                 "transaction_type": entry['transaction_type'],
                 "is_recurring": entry['is_recurring'],
@@ -450,7 +501,7 @@ class AccountViewSet(APIView):
         return Response(serializer.data)
 
     def post(self, request, *args, **kwargs):
-        serializer = AccountSerializer(data=request.data)
+        serializer = AccountSerializer(data=request.data, context={'request': request})
 
         if serializer.is_valid():
             user = serializer.save()

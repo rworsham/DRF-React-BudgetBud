@@ -50,7 +50,7 @@ class FamilySerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ["id", "name", "user"]
+        fields = ["id", "name"]
 
 
 class BudgetSerializer(serializers.ModelSerializer):
@@ -60,15 +60,16 @@ class BudgetSerializer(serializers.ModelSerializer):
 
 
 class TransactionSerializer(serializers.ModelSerializer):
-    category = serializers.CharField(source='category.name')
-    budget = serializers.CharField(source='budget.name')
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
+    budget = serializers.PrimaryKeyRelatedField(queryset=Budget.objects.all())
+    account = serializers.PrimaryKeyRelatedField(queryset=Account.objects.all())
     next_occurrence = serializers.DateField(required=False, allow_null=True)
 
     class Meta:
         model = Transaction
         fields = [
             'id', 'date', 'amount', 'transaction_type', 'description',
-            'category', 'budget', 'is_recurring', 'recurring_type', 'next_occurrence'
+            'category', 'budget', 'account', 'is_recurring', 'recurring_type', 'next_occurrence'
         ]
 
     def validate(self, data):
@@ -87,16 +88,16 @@ class TransactionSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = self.context['request'].user
 
-        category_name = validated_data.get('category')
-        budget_name = validated_data.get('budget')
-
-        category = Category.objects.filter(user=user, name=category_name['name']).first()
-        budget = Budget.objects.filter(user=user, name=budget_name['name']).first()
+        category = validated_data.get('category')
+        budget = validated_data.get('budget')
+        account = validated_data.get('account')
 
         if not category:
-            raise serializers.ValidationError(f"Category '{category_name}' does not exist.")
+            raise serializers.ValidationError(f"Category does not exist.")
         if not budget:
-            raise serializers.ValidationError(f"Budget '{budget_name}' does not exist.")
+            raise serializers.ValidationError(f"Budget does not exist.")
+        if not account:
+            raise serializers.ValidationError(f"Account does not exist.")
 
         validated_data['category'] = category
         validated_data['budget'] = budget
@@ -115,4 +116,9 @@ class TransactionSerializer(serializers.ModelSerializer):
 class AccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
-        fields = ["id", "name", "balance", "user"]
+        fields = ["id", "name", "balance"]
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data['user'] = user
+        return super().create(validated_data)
