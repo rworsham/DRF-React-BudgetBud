@@ -5,6 +5,8 @@ from rest_framework import generics, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from datetime import datetime, timedelta
+import calendar
+from collections import defaultdict
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Sum
 from reportlab.lib.pagesizes import letter, landscape
@@ -177,20 +179,6 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(data=data)
         if serializer.is_valid():
-            transaction = serializer.save()
-
-            if transaction.transaction_type == 'income':
-                new_balance = account.balance + transaction.amount
-            elif transaction.transaction_type == 'expense':
-                new_balance = account.balance - transaction.amount
-            else:
-                return Response({"error": "Invalid transaction type."}, status=400)
-
-            BalanceHistory.objects.create(account=account, balance=new_balance, date=transaction.date)
-
-            account.balance = new_balance
-            account.save()
-
             return Response(serializer.data, status=200)
 
         return Response(serializer.errors, status=400)
@@ -512,6 +500,57 @@ class AccountViewSet(APIView):
         return Response(serializer.errors, status=400)
 
 
+class AccountsOverviewReportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        today = datetime.today().date()
+        first_day_of_month = today.replace(day=1)
+        last_day_of_month = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+
+        accounts = Account.objects.filter(user=request.user)
+
+        date_balances = defaultdict(lambda: {account.name: None for account in accounts})
+
+        balance_histories = BalanceHistory.objects.filter(
+            account__in=accounts,
+            date__gte=first_day_of_month,
+            date__lte=last_day_of_month
+        )
+
+        for history in balance_histories:
+            date_balances[history.date][history.account.name] = history.balance
+
+        previous_balances = {account.name: None for account in accounts}
+
+        data = []
+        for single_date in self._get_dates_in_month(first_day_of_month, last_day_of_month):
+            formatted_entry = {
+                'name': single_date.strftime('%Y-%m-%d'),
+            }
+
+            for account in accounts:
+                balance = date_balances[single_date].get(account.name, None)
+
+                if balance is None and previous_balances.get(account.name) is not None:
+                    balance = previous_balances[account.name]
+
+                formatted_entry[account.name] = balance
+
+                if balance is not None:
+                    previous_balances[account.name] = balance
+
+            data.append(formatted_entry)
+
+        return Response(data)
+
+    def _get_dates_in_month(self, start_date, end_date):
+        current_date = start_date
+        while current_date <= end_date:
+            yield current_date
+            current_date += timedelta(days=1)
+
+
 class FamilyCreateViewSet(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -542,17 +581,3 @@ class FamilyCreateViewSet(APIView):
 
         return Response(serializer.errors, status=400)
 
-
-def generate_pdf(request):
-    buffer = BytesIO()
-    p = canvas.Canvas(buffer, pagesize=letter)
-
-    p.drawString(100, 750, "Hello, World! This is a dynamically generated PDF.")
-    p.showPage()
-    p.save()
-
-    buffer.seek(0)
-
-    response = HttpResponse(buffer.read(), content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="generated_file.pdf"'
-    return response
