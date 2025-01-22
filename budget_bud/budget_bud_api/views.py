@@ -13,7 +13,7 @@ from reportlab.lib.pagesizes import letter, landscape
 from reportlab.pdfgen import canvas
 from django.http import HttpResponse
 from io import BytesIO
-from .models import User, Family, Category, Budget, Transaction, Account, BalanceHistory
+from .models import User, Family, Category, Budget, Transaction, Account, BalanceHistory, ReportDashboard
 from .serializers import UserSerializer, UserCreateSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, TransactionSerializer, \
     AccountSerializer
 
@@ -46,6 +46,35 @@ class UserRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class UserReportsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        try:
+            dashboards = ReportDashboard.objects.filter(user=user).select_related('report')
+            if not dashboards.exists():
+                return Response(
+                    {"detail": "No reports found for this user."},
+                    status=400
+                )
+
+            reports = []
+            for dashboard in dashboards:
+                reports.append({
+                    'display_name': dashboard.report.display_name,
+                    'api_url': dashboard.report.api_url,
+                    'x_size': dashboard.x_size,
+                    'y_size': dashboard.y_size,
+                })
+
+            return Response(reports, status=400)
+
+        except Exception as e:
+            return Response(status=500)
 
 
 class FamilyView(generics.ListAPIView):

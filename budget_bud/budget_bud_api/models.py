@@ -112,3 +112,31 @@ class BalanceHistory(models.Model):
 
     class Meta:
         ordering = ['date']
+
+
+class Report(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    display_name = models.CharField(max_length=100)
+    api_url = models.URLField()
+
+    def __str__(self):
+        return self.name
+
+
+class ReportDashboard(models.Model):
+    X_SIZES = [
+        ('small', 'small'),
+        ('medium', 'medium'),
+        ('large', 'large'),
+    ]
+
+    Y_SIZES = [
+        ('small', 'small'),
+        ('medium', 'medium'),
+        ('large', 'large'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='report_dashboards')
+    report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name='dashboards')
+    x_size = models.CharField(max_length=6, choices=X_SIZES)
+    y_size = models.CharField(max_length=6, choices=Y_SIZES)
