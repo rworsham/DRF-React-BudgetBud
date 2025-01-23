@@ -13,7 +13,7 @@ from reportlab.lib.pagesizes import letter, landscape
 from reportlab.pdfgen import canvas
 from django.http import HttpResponse
 from io import BytesIO
-from .models import User, Family, Category, Budget, Transaction, Account, BalanceHistory, ReportDashboard
+from .models import User, Family, Category, Budget, Transaction, Account, BalanceHistory, ReportDashboard, Report
 from .serializers import UserSerializer, UserCreateSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, TransactionSerializer, \
     AccountSerializer
 
@@ -59,7 +59,7 @@ class UserReportsView(APIView):
             if not dashboards.exists():
                 return Response(
                     {"detail": "No reports found for this user."},
-                    status=400
+                    status=200
                 )
 
             reports = []
@@ -75,6 +75,14 @@ class UserReportsView(APIView):
 
         except Exception as e:
             return Response(status=500)
+
+
+class ReportChoices(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        reports = Report.objects.all().values('id', 'display_name')
+        return Response(reports)
 
 
 class FamilyView(generics.ListAPIView):

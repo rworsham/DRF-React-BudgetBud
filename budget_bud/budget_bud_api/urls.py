@@ -4,7 +4,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import UserListCreateView, UserCreateView, UserRetrieveUpdateDestroyView, FamilyView, CategoryViewSet, \
     BudgetViewSet, \
     TransactionViewSet, AccountViewSet, AllTransactionViewSet, TransactionBarChartViewSet, TransactionTableViewSet, \
-    TransactionPieChartViewSet, BudgetTransactionView, FamilyCreateViewSet, AccountsOverviewReportView
+    TransactionPieChartViewSet, BudgetTransactionView, FamilyCreateViewSet, AccountsOverviewReportView, UserReportsView, \
+    ReportChoices
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename="category")
@@ -16,6 +17,8 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/users/', UserListCreateView.as_view(), name='user-list-create'),
     path('api/user/', UserRetrieveUpdateDestroyView.as_view(), name='user-detail'),
+    path('api/user/reports/', UserReportsView.as_view(), name='user-reports'),
+    path('api/user/dashboard-report-options/', ReportChoices.as_view(), name='dashboard-report-options'),
     path('api/accounts/', AccountViewSet.as_view(), name='accounts'),
     path('api/accounts/overview-report/', AccountsOverviewReportView.as_view(), name='accounts-overview-report'),
     path('api/family/', FamilyView.as_view()),
