@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Family, Category, Budget, Transaction, Account
+from .models import Family, Category, Budget, Transaction, Account, ReportDashboard, Report
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -122,3 +122,18 @@ class AccountSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['user'] = user
         return super().create(validated_data)
+
+
+class ReportDashboardSerializer(serializers.ModelSerializer):
+    report = serializers.PrimaryKeyRelatedField(queryset=Report.objects.all())
+
+    class Meta:
+        model = ReportDashboard
+        fields = ['report', 'x_size', 'y_size']
+
+    def validate(self, data):
+        if data['x_size'] not in dict(ReportDashboard.X_SIZES):
+            raise serializers.ValidationError("Invalid x_size value.")
+        if data['y_size'] not in dict(ReportDashboard.Y_SIZES):
+            raise serializers.ValidationError("Invalid y_size value.")
+        return data

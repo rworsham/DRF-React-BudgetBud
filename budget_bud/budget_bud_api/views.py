@@ -14,8 +14,10 @@ from reportlab.pdfgen import canvas
 from django.http import HttpResponse
 from io import BytesIO
 from .models import User, Family, Category, Budget, Transaction, Account, BalanceHistory, ReportDashboard, Report
-from .serializers import UserSerializer, UserCreateSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, TransactionSerializer, \
-    AccountSerializer
+from .serializers import UserSerializer, UserCreateSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, \
+    TransactionSerializer, \
+    AccountSerializer, ReportDashboardSerializer
+
 
 class UserCreateView(APIView):
     permission_classes = [AllowAny]
@@ -52,7 +54,7 @@ class UserReportsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
+        user = self.request.user
 
         try:
             dashboards = ReportDashboard.objects.filter(user=user).select_related('report')
@@ -75,6 +77,19 @@ class UserReportsView(APIView):
 
         except Exception as e:
             return Response(status=500)
+
+    def post(self, request, *args, **kwargs):
+        user = self.request.user
+        serializer = ReportDashboardSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save(
+                user=user)
+
+            return Response(serializer.data, status=200)
+
+        return Response(serializer.errors, status=400)
+
 
 
 class ReportChoices(APIView):
