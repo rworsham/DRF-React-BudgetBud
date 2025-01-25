@@ -125,15 +125,15 @@ class Report(models.Model):
 
 class ReportDashboard(models.Model):
     X_SIZES = [
-        ('small', 'small'),
-        ('medium', 'medium'),
-        ('large', 'large'),
+        ('33', 'small'),
+        ('66', 'medium'),
+        ('100', 'large'),
     ]
 
     Y_SIZES = [
-        ('small', 'small'),
-        ('medium', 'medium'),
-        ('large', 'large'),
+        ('33', 'small'),
+        ('66', 'medium'),
+        ('100', 'large'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='report_dashboards')

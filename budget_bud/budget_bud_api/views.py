@@ -73,7 +73,7 @@ class UserReportsView(APIView):
                     'y_size': dashboard.y_size,
                 })
 
-            return Response(reports, status=400)
+            return Response(reports, status=200)
 
         except Exception as e:
             return Response(status=500)
