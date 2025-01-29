@@ -1,9 +1,7 @@
-from unicodedata import category
-
-from django.core.serializers import serialize
 from rest_framework import generics, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import NotFound
 from datetime import datetime, timedelta
 import calendar
 from collections import defaultdict
@@ -67,8 +65,8 @@ class UserReportsView(APIView):
             reports = []
             for dashboard in dashboards:
                 reports.append({
+                    'id': dashboard.id,
                     'display_name': dashboard.report.display_name,
-                    'api_url': dashboard.report.api_url,
                     'x_size': dashboard.x_size,
                     'y_size': dashboard.y_size,
                 })
@@ -76,7 +74,7 @@ class UserReportsView(APIView):
             return Response(reports, status=200)
 
         except Exception as e:
-            return Response(status=500)
+            return Response(status=400)
 
     def post(self, request, *args, **kwargs):
         user = self.request.user
@@ -85,6 +83,27 @@ class UserReportsView(APIView):
         if serializer.is_valid():
             serializer.save(
                 user=user)
+
+            return Response(serializer.data, status=200)
+
+        return Response(serializer.errors, status=400)
+
+    def patch(self, request, *args, **kwargs):
+        user = self.request.user
+        report_id = request.data.get("report_id")
+
+        try:
+            print(report_id)
+            print(user)
+            dashboard = ReportDashboard.objects.get(id=report_id, user=user)
+            print(dashboard)
+        except ReportDashboard.DoesNotExist:
+            raise NotFound({"detail": "Report dashboard not found or not owned by the user."})
+
+        serializer = ReportDashboardSerializer(dashboard, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
 
             return Response(serializer.data, status=200)
 
