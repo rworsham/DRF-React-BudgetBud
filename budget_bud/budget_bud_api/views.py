@@ -622,6 +622,117 @@ class AccountsOverviewReportView(APIView):
             current_date += timedelta(days=1)
 
 
+class AccountHistory(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self, start_date=None, end_date=None, account_id=None):
+        user = self.request.user
+        if not start_date or not end_date:
+            current_date = datetime.today()
+            start_date = current_date.replace(day=1).date()
+            next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+            end_date = (next_month - timedelta(days=1)).date()
+
+        if not account_id:
+            raise ValueError("Account ID is required.")
+
+        queryset = Transaction.objects.filter(
+            user=user,
+            account_id=account_id,
+            date__gte=start_date,
+            date__lte=end_date
+        )
+        return queryset
+
+    def post(self, request, *args, **kwargs):
+        print(request.data)
+        account_id = request.data.get('account_id')
+        start_date = request.data.get('start_date', None)
+        end_date = request.data.get('end_date', None)
+
+        if not account_id:
+            return Response(
+                {"detail": "Account ID required"},
+                status=400
+            )
+
+        if not start_date or not end_date:
+            current_date = datetime.today()
+            start_date = current_date.replace(day=1).date()
+            next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+            end_date = (next_month - timedelta(days=1)).date()
+
+        queryset = self.get_queryset(start_date=start_date, end_date=end_date, account_id=account_id)
+
+        aggregated_data = (
+            queryset
+            .values('id', 'amount', 'budget__name', 'category__name', 'date', 'transaction_type', 'description')
+            .order_by('date')
+        )
+
+        if request.data.get('format') == 'pdf':
+            return self.create_pdf(aggregated_data, start_date, end_date)
+
+        response_data = [
+            {
+                "id": entry['id'],
+                "amount": entry['amount'],
+                "description": entry['description'],
+                "budget": entry['budget__name'],
+                "category": entry['category__name'],
+                "date": entry['date'],
+                "transaction_type": entry['transaction_type'],
+            }
+            for entry in aggregated_data
+        ]
+
+        return Response(response_data)
+
+    def create_pdf(self, aggregated_data, start_date, end_date):
+        buffer = BytesIO()
+
+        p = canvas.Canvas(buffer, pagesize=landscape(letter))
+        margin_left = 30
+        margin_top = 550
+        column_width = 70
+        headers = ["ID", "Amount", "Description", "Budget", "Category", "Date", "Type"]
+
+        p.setFont("Helvetica", 16)
+        p.drawString(margin_left + 100, margin_top, f"Account History Report: {start_date} to {end_date}")
+
+        p.setFont("Helvetica", 12)
+        y_position = margin_top - 30
+
+        for index, header in enumerate(headers):
+            p.drawString(margin_left + (index * column_width), y_position, header)
+
+        y_position -= 20
+
+        for entry in aggregated_data:
+            p.drawString(margin_left, y_position, str(entry['id']))
+            p.drawString(margin_left + column_width, y_position, str(entry['amount']))
+            p.drawString(margin_left + 2 * column_width, y_position, entry['description'][:30])
+            p.drawString(margin_left + 3 * column_width, y_position, entry['budget__name'])
+            p.drawString(margin_left + 4 * column_width, y_position, entry['category__name'])
+            p.drawString(margin_left + 5 * column_width, y_position, str(entry['date']))
+            p.drawString(margin_left + 6 * column_width, y_position, entry['transaction_type'])
+
+            y_position -= 20
+
+            if y_position < 100:
+                p.showPage()
+                y_position = margin_top
+                for index, header in enumerate(headers):
+                    p.drawString(margin_left + (index * column_width), y_position, header)
+                y_position -= 20
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+        response = HttpResponse(buffer.read(), content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="account_history_report.pdf"'
+        return response
+
+
 class FamilyCreateViewSet(APIView):
     permission_classes = [IsAuthenticated]
 
