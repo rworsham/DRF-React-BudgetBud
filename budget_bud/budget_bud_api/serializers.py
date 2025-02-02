@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Family, Category, Budget, Transaction, Account, ReportDashboard, Report
+from .models import Family, Category, Budget, Transaction, Account, ReportDashboard, Report, SavingsGoal
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -122,6 +122,12 @@ class AccountSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['user'] = user
         return super().create(validated_data)
+
+
+class SavingsGoalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SavingsGoal
+        fields = ['account', 'target_balance']
 
 
 class ReportDashboardSerializer(serializers.ModelSerializer):

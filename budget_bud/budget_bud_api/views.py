@@ -11,10 +11,11 @@ from reportlab.lib.pagesizes import letter, landscape
 from reportlab.pdfgen import canvas
 from django.http import HttpResponse
 from io import BytesIO
-from .models import User, Family, Category, Budget, Transaction, Account, BalanceHistory, ReportDashboard, Report
+from .models import User, Family, Category, Budget, Transaction, Account, BalanceHistory, ReportDashboard, Report, \
+    SavingsGoal
 from .serializers import UserSerializer, UserCreateSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, \
     TransactionSerializer, \
-    AccountSerializer, ReportDashboardSerializer
+    AccountSerializer, ReportDashboardSerializer, SavingsGoalSerializer
 
 
 class UserCreateView(APIView):
@@ -125,6 +126,25 @@ class FamilyView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         return Family.objects.filter(members=user)
+
+
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = self.request.user
+
+        transaction_count = Transaction.objects.filter(user=user).count()
+        net_balance = Transaction.objects.filter(user=user).aggregate(Sum('amount'))['amount__sum']
+        goal_met_count = SavingsGoal.objects.filter(account__user=user, goal_met=True).count()
+
+        response_data = {
+            'total_transactions': transaction_count,
+            'savings_goals_met': goal_met_count,
+            'net_balance': net_balance,
+        }
+
+        return Response(response_data)
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -731,6 +751,26 @@ class AccountHistory(APIView):
         response = HttpResponse(buffer.read(), content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="account_history_report.pdf"'
         return response
+
+
+class SavingsGoalView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        user = self.request.user
+
+        serializer = SavingsGoalSerializer(data=request.data)
+
+        if serializer.is_valid():
+            account = Account.objects.filter(id=request.data['account'], user=user).first()
+            if not account:
+                return Response({"detail": "Account not found or you do not have permission to access this account."},
+                                status=400)
+
+            savings_goal = serializer.save(account=account)
+            return Response(SavingsGoalSerializer(savings_goal).data, status=200)
+
+        return Response(serializer.errors, status=400)
 
 
 class FamilyCreateViewSet(APIView):

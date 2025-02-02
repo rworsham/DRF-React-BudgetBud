@@ -84,6 +84,12 @@ class Transaction(models.Model):
         account.balance = new_balance
         account.save()
 
+        savings_goals = account.savings_goals.all()
+        if savings_goals.exists():
+            for goal in savings_goals:
+                goal.current_balance = account.balance
+                goal.check_goal_met()
+
 
 class Account(models.Model):
     name = models.CharField(max_length=100)
@@ -112,6 +118,27 @@ class BalanceHistory(models.Model):
 
     class Meta:
         ordering = ['date']
+
+
+class SavingsGoal(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='savings_goals')
+    target_balance = models.DecimalField(max_digits=10, decimal_places=2)
+    current_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    goal_met = models.BooleanField(default=False)
+    date_set = models.DateField(default=timezone.now)
+    alert_sent = models.BooleanField(default=False)
+
+    def check_goal_met(self):
+        if self.account.balance >= self.target_balance and not self.goal_met:
+            self.goal_met = True
+            self.save()
+            self.send_alert()
+
+    def send_alert(self):
+        if not self.alert_sent:
+            print("Email sent to user - will be expanded upon")
+            self.alert_sent = True
+            self.save()
 
 
 class Report(models.Model):

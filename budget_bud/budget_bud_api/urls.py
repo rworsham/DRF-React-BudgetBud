@@ -5,7 +5,7 @@ from .views import UserListCreateView, UserCreateView, UserRetrieveUpdateDestroy
     BudgetViewSet, \
     TransactionViewSet, AccountViewSet, AllTransactionViewSet, TransactionBarChartViewSet, TransactionTableViewSet, \
     TransactionPieChartViewSet, BudgetTransactionView, FamilyCreateViewSet, AccountsOverviewReportView, UserReportsView, \
-    ReportChoices, AccountHistory
+    ReportChoices, AccountHistory, SavingsGoalView, ProfileView
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename="category")
@@ -21,7 +21,9 @@ urlpatterns = [
     path('api/user/dashboard-report-options/', ReportChoices.as_view(), name='dashboard-report-options'),
     path('api/accounts/', AccountViewSet.as_view(), name='accounts'),
     path('api/accounts/overview-report/', AccountsOverviewReportView.as_view(), name='accounts-overview-report'),
+    path('api/profile/stats/', ProfileView.as_view(), name='profile-stats'),
     path('api/account/history/', AccountHistory.as_view(), name='account-history'),
+    path('api/account/savings-goal/', SavingsGoalView.as_view(), name='savings-goal'),
     path('api/family/', FamilyView.as_view()),
     path('api/family/create/', FamilyCreateViewSet.as_view(), name='family-create'),
     path('api/budget-transaction-overview/', BudgetTransactionView.as_view(), name='budget-transaction-overview'),
