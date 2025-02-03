@@ -274,6 +274,22 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.errors, status=400)
 
+    def destroy(self, request, *args, **kwargs):
+        user = self.request.user
+        transaction_id = kwargs.get('pk')
+
+        try:
+            transaction = Transaction.objects.get(id=transaction_id)
+        except Transaction.DoesNotExist:
+            return Response({"error": "Transaction not found."}, status=404)
+
+        if transaction.user != user:
+            return Response({"error": "You do not have permission to delete this transaction."}, status=403)
+
+        transaction.delete()
+        return Response(status=204)
+
+
 class AllTransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated]
