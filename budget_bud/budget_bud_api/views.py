@@ -1,3 +1,5 @@
+from unicodedata import category
+
 from rest_framework import generics, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -288,6 +290,53 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
         transaction.delete()
         return Response(status=204)
+
+    def update(self, request, *args, **kwargs):
+        user = request.user
+        transaction_id = kwargs.get('pk')
+
+        try:
+            transaction = Transaction.objects.get(id=transaction_id)
+        except Transaction.DoesNotExist:
+            return Response({"error": "Transaction not found."}, status=404)
+
+        if transaction.user != user:
+            return Response({"error": "You do not have permission to update this transaction."}, status=403)
+
+        data = request.data.copy()
+
+        if 'category' in data:
+            category_name = data.get('category')
+            try:
+                category = Category.objects.get(name__iexact=category_name, user=user)
+                data['category'] = category.id
+            except Category.DoesNotExist:
+                return Response({"error": f"Category '{category_name}' does not exist."}, status=400)
+
+        if 'budget' in data:
+            budget_name = data.get('budget')
+            try:
+                budget = Budget.objects.get(name__iexact=budget_name, user=user)
+                data['budget'] = budget.id
+            except Budget.DoesNotExist:
+                return Response({"error": f"Budget '{budget_name}' does not exist."}, status=400)
+
+        if 'account' in data:
+            account_name = data.get('account')
+            try:
+                account = Account.objects.get(name__iexact=account_name, user=user)
+                data['account'] = account.id
+            except Account.DoesNotExist:
+                return Response({"error": f"Account '{account_name}' does not exist."}, status=400)
+
+        print(f"Updated data: {data}")
+        serializer = self.get_serializer(transaction, data=data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=200)
+
+        return Response(serializer.errors, status=400)
 
 
 class AllTransactionViewSet(viewsets.ModelViewSet):
