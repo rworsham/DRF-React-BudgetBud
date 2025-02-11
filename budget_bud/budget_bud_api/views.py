@@ -17,7 +17,7 @@ from .models import User, Family, Category, Budget, Transaction, Account, Balanc
     SavingsGoal
 from .serializers import UserSerializer, UserCreateSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, \
     TransactionSerializer, \
-    AccountSerializer, ReportDashboardSerializer, SavingsGoalSerializer
+    AccountSerializer, ReportDashboardSerializer, SavingsGoalSerializer, BudgetGoalSerializer
 
 
 class UserCreateView(APIView):
@@ -170,6 +170,153 @@ class BudgetViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    def patch(self, request, *args, **kwargs):
+        user = self.request.user
+        budget_id = request.data.get("id")
+
+        try:
+            budget = Budget.objects.get(id=budget_id, user=user)
+        except Budget.DoesNotExist:
+            raise NotFound({"detail": "Budget not found or not owned by user."})
+
+        serializer = BudgetSerializer(budget, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+
+            return Response(serializer.data, status=200)
+
+        return Response(serializer.errors, status=400)
+
+
+class BudgetHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self, start_date=None, end_date=None, budget_id=None):
+        user = self.request.user
+        if not start_date or not end_date:
+            current_date = datetime.today()
+            start_date = current_date.replace(day=1).date()
+            next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+            end_date = (next_month - timedelta(days=1)).date()
+
+        if not budget_id:
+            raise ValueError("Budget ID is required.")
+
+        queryset = Transaction.objects.filter(
+            user=user,
+            budget_id=budget_id,
+            date__gte=start_date,
+            date__lte=end_date
+        )
+        return queryset
+
+    def post(self, request, *args, **kwargs):
+        budget_id = request.data.get('budget_id')
+        start_date = request.data.get('start_date', None)
+        end_date = request.data.get('end_date', None)
+
+        if not budget_id:
+            return Response(
+                {"detail": "Budget ID required"},
+                status=400
+            )
+
+        if not start_date or not end_date:
+            current_date = datetime.today()
+            start_date = current_date.replace(day=1).date()
+            next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+            end_date = (next_month - timedelta(days=1)).date()
+
+        queryset = self.get_queryset(start_date=start_date, end_date=end_date, budget_id=budget_id)
+
+        aggregated_data = (
+            queryset
+            .values('id', 'amount', 'budget__name', 'category__name', 'date', 'transaction_type', 'description')
+            .order_by('date')
+        )
+
+        if request.data.get('format') == 'pdf':
+            return self.create_pdf(aggregated_data, start_date, end_date)
+
+        response_data = [
+            {
+                "id": entry['id'],
+                "amount": entry['amount'],
+                "description": entry['description'],
+                "budget": entry['budget__name'],
+                "category": entry['category__name'],
+                "date": entry['date'],
+                "transaction_type": entry['transaction_type'],
+            }
+            for entry in aggregated_data
+        ]
+
+        return Response(response_data)
+
+    def create_pdf(self, aggregated_data, start_date, end_date):
+        buffer = BytesIO()
+
+        p = canvas.Canvas(buffer, pagesize=landscape(letter))
+        margin_left = 30
+        margin_top = 550
+        column_width = 70
+        headers = ["ID", "Amount", "Description", "Budget", "Category", "Date", "Type"]
+
+        p.setFont("Helvetica", 16)
+        p.drawString(margin_left + 100, margin_top, f"Budget History Report: {start_date} to {end_date}")
+
+        p.setFont("Helvetica", 12)
+        y_position = margin_top - 30
+
+        for index, header in enumerate(headers):
+            p.drawString(margin_left + (index * column_width), y_position, header)
+
+        y_position -= 20
+
+        for entry in aggregated_data:
+            p.drawString(margin_left, y_position, str(entry['id']))
+            p.drawString(margin_left + column_width, y_position, str(entry['amount']))
+            p.drawString(margin_left + 2 * column_width, y_position, entry['description'][:30])
+            p.drawString(margin_left + 3 * column_width, y_position, entry['budget__name'])
+            p.drawString(margin_left + 4 * column_width, y_position, entry['category__name'])
+            p.drawString(margin_left + 5 * column_width, y_position, str(entry['date']))
+            p.drawString(margin_left + 6 * column_width, y_position, entry['transaction_type'])
+
+            y_position -= 20
+
+            if y_position < 100:
+                p.showPage()
+                y_position = margin_top
+                for index, header in enumerate(headers):
+                    p.drawString(margin_left + (index * column_width), y_position, header)
+                y_position -= 20
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+        response = HttpResponse(buffer.read(), content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="account_history_report.pdf"'
+        return response
+
+
+class BudgetGoalView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        user = self.request.user
+
+        serializer = BudgetGoalSerializer(data=request.data)
+
+        if serializer.is_valid():
+            budget = Budget.objects.filter(id=request.data['budget'], user=user).first()
+            if not budget:
+                return Response({"detail": "Budget not found or you do not have permission to access this Budget"})
+            budget_goal = serializer.save(budget=budget)
+            return Response(BudgetGoalSerializer(budget_goal).data, status=200)
+
+        return Response(serializer.errors, status=400)
+
 
 class BudgetTransactionView(APIView):
     permission_classes = [IsAuthenticated]

@@ -27,6 +27,31 @@ class Budget(models.Model):
         return self.name
 
 
+class BudgetGoal(models.Model):
+    budget = models.ForeignKey(Budget, on_delete=models.CASCADE, related_name='budget_goals')
+    target_balance = models.DecimalField(max_digits=10, decimal_places=2)
+    current_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    goal_met = models.BooleanField(default=False)
+    date_set = models.DateField(default=timezone.now)
+    alert_sent = models.BooleanField(default=False)
+
+    def update_goal_progress(self, amount):
+        self.current_balance += amount
+        self.check_goal_met()
+
+    def check_goal_met(self):
+        if self.budget.balance >= self.target_balance and not self.goal_met:
+            self.goal_met = True
+            self.save()
+            self.send_alert()
+
+    def send_alert(self):
+        if not self.alert_sent:
+            print("Email sent to user - will be expanded upon")
+            self.alert_sent = True
+            self.save()
+
+
 class Transaction(models.Model):
     TRANSACTION_TYPES = [
         ('income', 'Income'),
@@ -89,6 +114,21 @@ class Transaction(models.Model):
             for goal in savings_goals:
                 goal.current_balance = account.balance
                 goal.check_goal_met()
+
+        budget = self.budget
+        if self.transaction_type == 'income':
+            current_balance = budget.balance + self.amount
+        elif self.transaction_type == 'expense':
+            current_balance = budget.balance - self.amount
+        else:
+            raise ValueError("Invalid transaction type.")
+        budget.current_balance = current_balance
+        budget.save()
+
+        budget_goals = self.budget.budget_goals.all()
+        if budget_goals.exists():
+            for goal in budget_goals:
+                goal.update_goal_progress(self.amount)
 
 
 class Account(models.Model):
