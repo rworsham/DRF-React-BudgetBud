@@ -419,6 +419,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(data=data)
         if serializer.is_valid():
+            serializer.save()
             return Response(serializer.data, status=200)
 
         return Response(serializer.errors, status=400)
@@ -520,10 +521,8 @@ class AllTransactionViewSet(viewsets.ModelViewSet):
 class TransactionBarChartViewSet(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self, start_date=None, end_date=None):
+    def get_queryset(self, start_date=None, end_date=None, family_view=False, family=None):
         user = self.request.user
-        print(f"Filtering transactions for user: {user}")
-        print(f"Start date: {start_date}, End date: {end_date}")
 
         if not start_date or not end_date:
             current_date = datetime.today()
@@ -531,20 +530,32 @@ class TransactionBarChartViewSet(APIView):
             next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
             end_date = (next_month - timedelta(days=1)).date()
 
-        print(f"Querying transactions with dates: {start_date} to {end_date}")
-
-        queryset = Transaction.objects.filter(
-            user=user,
-            date__gte=start_date,
-            date__lte=end_date
-        )
-
-        print(f"Queryset after filtering: {queryset}")
-        return queryset
+        if family_view and family:
+            queryset = Transaction.objects.filter(
+                family=family.id,
+                date__gte = start_date,
+                date__lte = end_date
+            )
+            return queryset
+        else:
+            queryset = Transaction.objects.filter(
+                user=user,
+                date__gte=start_date,
+                date__lte=end_date
+            )
+            return queryset
 
     def post(self, request, *args, **kwargs):
         start_date = request.data.get('start_date', None)
         end_date = request.data.get('end_date', None)
+        family_view = request.GET.get('familyView', 'false') == 'true'
+
+        family = None
+        if family_view:
+            try:
+                family = request.user.families.first()
+            except Family.DoesNotExist:
+                return Response({"detail": "Family not found for the user."}, status=404)
 
         if not start_date or not end_date:
             current_date = datetime.today()
@@ -563,9 +574,12 @@ class TransactionBarChartViewSet(APIView):
                 status=400
             )
 
-        print(f"Converted Start Date: {start_date}, End Date: {end_date}")
-
-        queryset = self.get_queryset(start_date=start_date, end_date=end_date)
+        queryset = self.get_queryset(
+            start_date=start_date,
+            end_date=end_date,
+            family_view=family_view,
+            family=family
+        )
 
         aggregated_data = (
             queryset
