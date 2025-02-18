@@ -70,12 +70,13 @@ class TransactionSerializer(serializers.ModelSerializer):
     budget = serializers.PrimaryKeyRelatedField(queryset=Budget.objects.all())
     account = serializers.PrimaryKeyRelatedField(queryset=Account.objects.all())
     next_occurrence = serializers.DateField(required=False, allow_null=True)
+    family = serializers.PrimaryKeyRelatedField(queryset=Family.objects.all())
 
     class Meta:
         model = Transaction
         fields = [
             'id', 'date', 'amount', 'transaction_type', 'description',
-            'category', 'budget', 'account', 'is_recurring', 'recurring_type', 'next_occurrence'
+            'category', 'budget', 'account', 'is_recurring', 'recurring_type', 'next_occurrence', 'family',
         ]
 
     def validate(self, data):
@@ -93,10 +94,10 @@ class TransactionSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = self.context['request'].user
-
         category = validated_data.get('category')
         budget = validated_data.get('budget')
         account = validated_data.get('account')
+        family = validated_data.get('family')
 
         if not category:
             raise serializers.ValidationError(f"Category does not exist.")
@@ -104,7 +105,10 @@ class TransactionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(f"Budget does not exist.")
         if not account:
             raise serializers.ValidationError(f"Account does not exist.")
+        if not family:
+            raise serializers.ValidationError(f"Family does not exist.")
 
+        validated_data['family'] = family
         validated_data['category'] = category
         validated_data['budget'] = budget
         validated_data['user'] = user

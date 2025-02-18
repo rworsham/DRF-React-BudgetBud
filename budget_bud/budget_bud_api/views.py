@@ -1,5 +1,3 @@
-from unicodedata import category
-
 from rest_framework import generics, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -96,10 +94,7 @@ class UserReportsView(APIView):
         report_id = request.data.get("report_id")
 
         try:
-            print(report_id)
-            print(user)
             dashboard = ReportDashboard.objects.get(id=report_id, user=user)
-            print(dashboard)
         except ReportDashboard.DoesNotExist:
             raise NotFound({"detail": "Report dashboard not found or not owned by the user."})
 
@@ -155,6 +150,14 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+
+        if self.request.GET.get('familyView', 'false') == 'true':
+            families = user.families.all()
+            members = []
+            for family in families:
+                members.extend(family.members.all())
+            return Category.objects.filter(user__in=members).distinct()
+
         return Category.objects.filter(user=user)
 
     def perform_create(self, serializer):
@@ -166,6 +169,14 @@ class BudgetViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+
+        if self.request.GET.get('familyView', 'false') == 'true':
+            families = user.families.all()
+            members = []
+            for family in families:
+                members.extend(family.members.all())
+            return Budget.objects.filter(user__in=members).distinct()
+
         return Budget.objects.filter(user=user)
 
     def perform_create(self, serializer):
@@ -391,38 +402,79 @@ class TransactionViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         user = request.user
         data = request.data
-
         account_id = data.get('account')
-        if not account_id:
-            return Response({"error": "Account is required."}, status=400)
-
-        account = Account.objects.filter(id=account_id, user=user).first()
-        if not account:
-            return Response({"error": "Account does not exist or does not belong to the user."},
-                            status=400)
-
         category_id = data.get('category')
         budget_id = data.get('budget')
 
-        category = Category.objects.filter(user=user, id=category_id).first()
-        budget = Budget.objects.filter(user=user, id=budget_id).first()
+        if not account_id:
+            return Response({"error": "Account is required."}, status=400)
 
-        if not category:
-            return Response({"error": f"Category '{category_id}' does not exist."},
-                            status=400)
-        if not budget:
-            return Response({"error": f"Budget '{budget_id}' does not exist."}, status=400)
+        if self.request.GET.get('familyView', 'false') == 'true':
+            families = user.families.all()
+            members = []
+            for family in families:
+                members.extend(family.members.all())
 
-        data['category'] = category.id
-        data['budget'] = budget.id
-        data['user'] = user
+            account = Account.objects.filter(id=account_id, user__in=members).first()
+            if not account:
+                return Response({"error": "Account does not exist or does not belong to the user."},
+                                status=400)
 
-        serializer = self.get_serializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=200)
+            category = Category.objects.filter(id=account_id, user__in=members).first()
+            if not category:
+                return Response({"error": f"Category '{category_id}' does not exist."},
+                                status=400)
 
-        return Response(serializer.errors, status=400)
+            budget = Budget.objects.filter(id=budget_id, user__in=members).first()
+            if not budget:
+                return Response({"error": f"Budget '{budget_id}' does not exist."}, status=400)
+            if Family.objects.filter(members=user):
+                try:
+                    family = request.user.families.first()
+                    data['family'] = family.id
+                except Family.DoesNotExist:
+                    return Response({"detail": "Family not found for the user."}, status=404)
+
+            data['category'] = category.id
+            data['budget'] = budget.id
+            data['user'] = user
+
+            serializer = self.get_serializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=201)
+            return Response(serializer.errors, status=400)
+        else:
+            account = Account.objects.filter(id=account_id, user=user).first()
+            if not account:
+                return Response({"error": "Account does not exist or does not belong to the user."},
+                                status=400)
+
+            category = Category.objects.filter(user=user, id=category_id).first()
+            if not category:
+                return Response({"error": f"Category '{category_id}' does not exist."},
+                                status=400)
+
+            budget = Budget.objects.filter(user=user, id=budget_id).first()
+            if not budget:
+                return Response({"error": f"Budget '{budget_id}' does not exist."}, status=400)
+
+            if Family.objects.filter(members=user):
+                try:
+                    family = request.user.families.first()
+                    data['family'] = family.id
+                except Family.DoesNotExist:
+                    return Response({"detail": "Family not found for the user."}, status=404)
+
+            data['category'] = category.id
+            data['budget'] = budget.id
+            data['user'] = user
+
+            serializer = self.get_serializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=201)
+            return Response(serializer.errors, status=400)
 
     def destroy(self, request, *args, **kwargs):
         user = self.request.user
@@ -798,6 +850,14 @@ class AccountViewSet(APIView):
 
     def get_queryset(self, request):
         user = self.request.user
+
+        if self.request.GET.get('familyView', 'false') == 'true':
+            families = user.families.all()
+            members = []
+            for family in families:
+                members.extend(family.members.all())
+            return Account.objects.filter(user__in=members).distinct()
+
         return Account.objects.filter(user=user)
 
     def get(self, request, *args, **kwargs):

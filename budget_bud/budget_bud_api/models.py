@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from decimal import Decimal
 
 class Family(models.Model):
     name = models.CharField(max_length=30)
@@ -116,19 +117,14 @@ class Transaction(models.Model):
                 goal.check_goal_met()
 
         budget = self.budget
-        if self.transaction_type == 'income':
-            current_balance = budget.balance + self.amount
-        elif self.transaction_type == 'expense':
-            current_balance = budget.balance - self.amount
-        else:
-            raise ValueError("Invalid transaction type.")
-        budget.current_balance = current_balance
-        budget.save()
-
-        budget_goals = self.budget.budget_goals.all()
+        budget_goals = budget.budget_goals.all()
         if budget_goals.exists():
             for goal in budget_goals:
-                goal.update_goal_progress(self.amount)
+                if goal.budget == budget:
+                    if self.transaction_type == 'income':
+                        goal.update_goal_progress(Decimal(self.amount))
+                    elif self.transaction_type == 'expense':
+                        goal.update_goal_progress(-Decimal(self.amount))
 
 
 class Account(models.Model):
