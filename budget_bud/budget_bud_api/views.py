@@ -204,7 +204,7 @@ class BudgetViewSet(viewsets.ModelViewSet):
 class BudgetHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self, start_date=None, end_date=None, budget_id=None):
+    def get_queryset(self, start_date=None, end_date=None, budget_id=None, family_view=False, family=None):
         user = self.request.user
         if not start_date or not end_date:
             current_date = datetime.today()
@@ -215,18 +215,35 @@ class BudgetHistoryView(APIView):
         if not budget_id:
             raise ValueError("Budget ID is required.")
 
-        queryset = Transaction.objects.filter(
-            user=user,
-            budget_id=budget_id,
-            date__gte=start_date,
-            date__lte=end_date
-        )
-        return queryset
+        if family_view and family:
+            queryset = Transaction.objects.filter(
+                family=family.id,
+                budget_id=budget_id,
+                date__gte = start_date,
+                date__lte = end_date
+            )
+            return queryset
+        else:
+            queryset = Transaction.objects.filter(
+                user=user,
+                budget_id=budget_id,
+                date__gte=start_date,
+                date__lte=end_date
+            )
+            return queryset
 
     def post(self, request, *args, **kwargs):
         budget_id = request.data.get('budget_id')
         start_date = request.data.get('start_date', None)
         end_date = request.data.get('end_date', None)
+        family_view = request.GET.get('familyView', 'false') == 'true'
+
+        family = None
+        if family_view:
+            try:
+                family = request.user.families.first()
+            except Family.DoesNotExist:
+                return Response({"detail": "Family not found for the user."}, status=404)
 
         if not budget_id:
             return Response(
@@ -240,7 +257,13 @@ class BudgetHistoryView(APIView):
             next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
             end_date = (next_month - timedelta(days=1)).date()
 
-        queryset = self.get_queryset(start_date=start_date, end_date=end_date, budget_id=budget_id)
+        queryset = self.get_queryset(
+            start_date=start_date,
+            end_date=end_date,
+            budget_id=budget_id,
+            family_view=family_view,
+            family=family
+        )
 
         aggregated_data = (
             queryset
@@ -336,6 +359,7 @@ class BudgetTransactionView(APIView):
         user = self.request.user
         start_date = request.data.get('start_date', None)
         end_date = request.data.get('end_date', None)
+        family_view = request.GET.get('familyView', 'false') == 'true'
 
         if not start_date or not end_date:
             current_date = datetime.today()
@@ -354,15 +378,33 @@ class BudgetTransactionView(APIView):
                 status=400
             )
 
-        transaction_queryset = Transaction.objects.filter(
-            user=user,
-            date__gte=start_date,
-            date__lte=end_date
-        )
+        family = None
+        if family_view:
+            try:
+                family = request.user.families.first()
+            except Family.DoesNotExist:
+                return Response({"detail": "Family not found for the user."}, status=404)
 
-        budget_queryset = Budget.objects.filter(user=user)
+        if family_view and family:
+            transaction_queryset = Transaction.objects.filter(
+                family=family.id,
+                date__gte = start_date,
+                date__lte = end_date
+            )
+            families = user.families.all()
+            members = []
+            for family in families:
+                members.extend(family.members.all())
+            budget_queryset = Budget.objects.filter(user__in=members).distinct()
+        else:
+            transaction_queryset = Transaction.objects.filter(
+                user=user,
+                date__gte=start_date,
+                date__lte=end_date
+            )
+            budget_queryset = Budget.objects.filter(user=user)
+
         budgets_remaining = []
-
         for budget in budget_queryset:
             budget_transactions = Transaction.objects.filter(budget=budget, date__range=[start_date,
                                                                                          end_date])
@@ -640,8 +682,6 @@ class TransactionBarChartViewSet(APIView):
             .order_by('category__name')
         )
 
-        print(f"Agg Data: {aggregated_data}")
-
         response_data = [
             {
                 "category": entry['category__name'],
@@ -650,15 +690,13 @@ class TransactionBarChartViewSet(APIView):
             for entry in aggregated_data
         ]
 
-        print(f"Response Data: {response_data}")
-
         return Response(response_data)
 
 
 class TransactionTableViewSet(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self, start_date=None, end_date=None):
+    def get_queryset(self, start_date=None, end_date=None, family_view=False, family=None):
         user = self.request.user
         if not start_date or not end_date:
             current_date = datetime.today()
@@ -666,16 +704,32 @@ class TransactionTableViewSet(APIView):
             next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
             end_date = (next_month - timedelta(days=1)).date()
 
-        queryset = Transaction.objects.filter(
-            user=user,
-            date__gte=start_date,
-            date__lte=end_date
-        )
-        return queryset
+        if family_view and family:
+            queryset = Transaction.objects.filter(
+                family=family.id,
+                date__gte = start_date,
+                date__lte = end_date
+            )
+            return queryset
+        else:
+            queryset = Transaction.objects.filter(
+                user=user,
+                date__gte=start_date,
+                date__lte=end_date
+            )
+            return queryset
 
     def post(self, request, *args, **kwargs):
         start_date = request.data.get('start_date', None)
         end_date = request.data.get('end_date', None)
+        family_view = request.GET.get('familyView', 'false') == 'true'
+
+        family = None
+        if family_view:
+            try:
+                family = request.user.families.first()
+            except Family.DoesNotExist:
+                return Response({"detail": "Family not found for the user."}, status=404)
 
         if not start_date or not end_date:
             current_date = datetime.today()
@@ -694,7 +748,12 @@ class TransactionTableViewSet(APIView):
                 status=400
             )
 
-        queryset = self.get_queryset(start_date=start_date, end_date=end_date)
+        queryset = self.get_queryset(
+            start_date=start_date,
+            end_date=end_date,
+            family_view=family_view,
+            family=family
+        )
 
         aggregated_data = (
             queryset
@@ -776,10 +835,8 @@ class TransactionTableViewSet(APIView):
 class TransactionPieChartViewSet(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self, start_date=None, end_date=None):
+    def get_queryset(self, start_date=None, end_date=None, family_view=False, family=None):
         user = self.request.user
-        print(f"Filtering transactions for user: {user}")
-        print(f"Start date: {start_date}, End date: {end_date}")
 
         if not start_date or not end_date:
             current_date = datetime.today()
@@ -787,20 +844,32 @@ class TransactionPieChartViewSet(APIView):
             next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
             end_date = (next_month - timedelta(days=1)).date()
 
-        print(f"Querying transactions with dates: {start_date} to {end_date}")
-
-        queryset = Transaction.objects.filter(
-            user=user,
-            date__gte=start_date,
-            date__lte=end_date
-        )
-
-        print(f"Queryset after filtering: {queryset}")
-        return queryset
+        if family_view and family:
+            queryset = Transaction.objects.filter(
+                family=family.id,
+                date__gte = start_date,
+                date__lte = end_date
+            )
+            return queryset
+        else:
+            queryset = Transaction.objects.filter(
+                user=user,
+                date__gte=start_date,
+                date__lte=end_date
+            )
+            return queryset
 
     def post(self, request, *args, **kwargs):
         start_date = request.data.get('start_date', None)
         end_date = request.data.get('end_date', None)
+        family_view = request.GET.get('familyView', 'false') == 'true'
+
+        family = None
+        if family_view:
+            try:
+                family = request.user.families.first()
+            except Family.DoesNotExist:
+                return Response({"detail": "Family not found for the user."}, status=404)
 
         if not start_date or not end_date:
             current_date = datetime.today()
@@ -821,7 +890,12 @@ class TransactionPieChartViewSet(APIView):
 
         print(f"Converted Start Date; {start_date}, End date: {end_date}")
 
-        queryset = self.get_queryset(start_date=start_date, end_date=end_date)
+        queryset = self.get_queryset(
+            start_date=start_date,
+            end_date=end_date,
+            family_view=family_view,
+            family=family
+        )
 
         aggregated_data = (
             queryset
@@ -830,8 +904,6 @@ class TransactionPieChartViewSet(APIView):
             .order_by('category__name')
         )
 
-        print(f"Agg Data: {aggregated_data}")
-
         response_data = [
             {
                 "name": entry['category__name'],
@@ -839,8 +911,6 @@ class TransactionPieChartViewSet(APIView):
             }
             for entry in aggregated_data
         ]
-
-        print(f"Response Data: {response_data}")
 
         return Response(response_data)
 
@@ -881,11 +951,28 @@ class AccountsOverviewReportView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
+        user = self.request.user
         today = datetime.today().date()
         first_day_of_month = today.replace(day=1)
         last_day_of_month = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+        family_view = request.GET.get('familyView', 'false') == 'true'
 
-        accounts = Account.objects.filter(user=request.user)
+        family = None
+        if family_view:
+            try:
+                family = request.user.families.first()
+            except Family.DoesNotExist:
+                return Response({"detail": "Family not found for the user."}, status=404)
+
+
+        if family_view and family:
+            families = user.families.all()
+            members = []
+            for family in families:
+                members.extend(family.members.all())
+            accounts = Account.objects.filter(user__in=members).distinct()
+        else:
+            accounts = Account.objects.filter(user=request.user)
 
         date_balances = defaultdict(lambda: {account.name: None for account in accounts})
 
@@ -931,7 +1018,7 @@ class AccountsOverviewReportView(APIView):
 class AccountHistory(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self, start_date=None, end_date=None, account_id=None):
+    def get_queryset(self, start_date=None, end_date=None, account_id=None, family_view=False, family=None):
         user = self.request.user
         if not start_date or not end_date:
             current_date = datetime.today()
@@ -942,19 +1029,29 @@ class AccountHistory(APIView):
         if not account_id:
             raise ValueError("Account ID is required.")
 
-        queryset = Transaction.objects.filter(
-            user=user,
-            account_id=account_id,
-            date__gte=start_date,
-            date__lte=end_date
-        )
-        return queryset
+        if family_view and family:
+            queryset = Transaction.objects.filter(
+                family=family.id,
+                account_id=account_id,
+                date__gte=start_date,
+                date__lte=end_date
+            )
+            return queryset
+        else:
+            queryset = Transaction.objects.filter(
+                user=user,
+                account_id=account_id,
+                date__gte=start_date,
+                date__lte=end_date
+            )
+            return queryset
 
     def post(self, request, *args, **kwargs):
         print(request.data)
         account_id = request.data.get('account_id')
         start_date = request.data.get('start_date', None)
         end_date = request.data.get('end_date', None)
+        family_view = request.GET.get('familyView', 'false') == 'true'
 
         if not account_id:
             return Response(
@@ -962,13 +1059,26 @@ class AccountHistory(APIView):
                 status=400
             )
 
+        family = None
+        if family_view:
+            try:
+                family = request.user.families.first()
+            except Family.DoesNotExist:
+                return Response({"detail": "Family not found for the user."}, status=404)
+
         if not start_date or not end_date:
             current_date = datetime.today()
             start_date = current_date.replace(day=1).date()
             next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
             end_date = (next_month - timedelta(days=1)).date()
 
-        queryset = self.get_queryset(start_date=start_date, end_date=end_date, account_id=account_id)
+        queryset = self.get_queryset(
+            start_date=start_date,
+            end_date=end_date,
+            account_id=account_id,
+            family_view=family_view,
+            family=family
+        )
 
         aggregated_data = (
             queryset
