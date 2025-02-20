@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from decimal import Decimal
+import uuid
+
 
 class Family(models.Model):
     name = models.CharField(max_length=30)
@@ -9,6 +11,14 @@ class Family(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Invitation(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    email = models.EmailField()
+    token = models.UUIDField(default=uuid.uuid4, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
 
 
 class Category(models.Model):

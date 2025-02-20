@@ -7,12 +7,16 @@ import calendar
 from collections import defaultdict
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Sum
+from django.utils import timezone
+from django.core.validators import EmailValidator
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.pdfgen import canvas
 from django.http import HttpResponse
 from io import BytesIO
+import uuid
+from .utils import SendEmail
 from .models import User, Family, Category, Budget, Transaction, Account, BalanceHistory, ReportDashboard, Report, \
-    SavingsGoal
+    SavingsGoal, Invitation
 from .serializers import UserSerializer, UserCreateSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, \
     TransactionSerializer, \
     AccountSerializer, ReportDashboardSerializer, SavingsGoalSerializer, BudgetGoalSerializer
@@ -1199,3 +1203,53 @@ class FamilyCreateViewSet(APIView):
 
         return Response(serializer.errors, status=400)
 
+
+class FamilyAddMemberViewSet(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        validator = EmailValidator()
+        user = self.request.user
+        family = Family.objects.filter(members=user)
+
+        if not family.exist():
+            return Response({'detail': 'Must be a member of a Family group to invite others'}, status=400)
+
+        invited_user = request.data.get('invited_user')
+
+        if not validator(invited_user):
+            return Response({'detail': 'email is not a valid email address'}, status=400)
+
+        token = uuid.uuid4()
+        expires_at = timezone.now() + timedelta(days=1)
+
+        invitation = Invitation(email=invited_user, token=token, expires_at=expires_at)
+        invitation.save()
+
+        user_exist = User.objects.filter(email=invited_user)
+        if user_exist.exist():
+            invite_url = f'https://localhost:3000/login/invite/{token}'
+
+            data = {
+                'username': user.name,
+                'invitation_link': invite_url
+            }
+            email_service = SendEmail()
+            try:
+                email_service.send_mail(recipient=invited_user, message_type='Invitation_Existing_User', data=data)
+                return Response({"message": "Invitation sent successfully!"}, status=200)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+        else:
+            invite_url = f'https://localhost:3000/SignUp/invite/{token}'
+
+            data = {
+                'username': user.name,
+                'invitation_link': invite_url
+            }
+            email_service = SendEmail()
+            try:
+                email_service.send_mail(recipient=invited_user,message_type='Invitation',data=data)
+                return Response({"message": "Invitation sent successfully!"}, status=200)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)

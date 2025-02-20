@@ -1,0 +1,14 @@
+Hello!
+
+You have been invited to join {{ username }}.
+
+This invitation is to invite you into a family group on the platform. This allows other members of the group to consolidate budget tracking with you and share spending/savings goals.
+
+To accept the invitation, click the link below:
+
+{{ invitation_link }}
+
+If you did not request this invitation, please disregard this email.
+
+------------------------------------------------------------
+This is an automated message, please do not reply.
