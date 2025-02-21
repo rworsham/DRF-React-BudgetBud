@@ -5,7 +5,8 @@ from .views import UserListCreateView, UserCreateView, UserRetrieveUpdateDestroy
     BudgetViewSet, \
     TransactionViewSet, AccountViewSet, AllTransactionViewSet, TransactionBarChartViewSet, TransactionTableViewSet, \
     TransactionPieChartViewSet, BudgetTransactionView, FamilyCreateViewSet, AccountsOverviewReportView, UserReportsView, \
-    ReportChoices, AccountHistory, SavingsGoalView, ProfileView, BudgetGoalView, BudgetHistoryView
+    ReportChoices, AccountHistory, SavingsGoalView, ProfileView, BudgetGoalView, BudgetHistoryView, \
+    FamilyAddMemberViewSet
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename="category")
@@ -26,6 +27,7 @@ urlpatterns = [
     path('api/account/savings-goal/', SavingsGoalView.as_view(), name='savings-goal'),
     path('api/family/', FamilyView.as_view()),
     path('api/family/create/', FamilyCreateViewSet.as_view(), name='family-create'),
+    path('api/family/invite/', FamilyAddMemberViewSet.as_view(), name='family-invite'),
     path('api/budget-goal/', BudgetGoalView.as_view(), name='budget-goal'),
     path('api/budget-history/', BudgetHistoryView.as_view(), name='budget-history'),
     path('api/budget-transaction-overview/', BudgetTransactionView.as_view(), name='budget-transaction-overview'),

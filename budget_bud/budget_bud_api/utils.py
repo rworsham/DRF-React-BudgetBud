@@ -12,7 +12,7 @@ class SendEmail:
             subject = 'Family Invitation'
             html_message = render_to_string('invitation.html', data)
             text_message = render_to_string('invitation.txt', data)
-        elif message_type == 'Activation':
+        elif message_type == 'Invitation_Existing_User':
             subject = 'Invitation'
             html_message = render_to_string('invitation_existing_user.html', data)
             text_message = render_to_string('invitation_existing_user.txt', data)
