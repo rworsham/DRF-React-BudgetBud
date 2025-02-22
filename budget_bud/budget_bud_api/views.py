@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Sum
 from django.utils import timezone
 from django.core.validators import EmailValidator
+from django.core.exceptions import ValidationError
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.pdfgen import canvas
 from django.http import HttpResponse
@@ -1212,26 +1213,28 @@ class FamilyAddMemberViewSet(APIView):
         user = self.request.user
         family = Family.objects.filter(members=user)
 
-        if not family.exist():
+        if not family.exists():
             return Response({'detail': 'Must be a member of a Family group to invite others'}, status=400)
 
         invited_user = request.data.get('invited_user')
 
-        if not validator(invited_user):
+        try:
+            validator(invited_user)
+        except ValidationError:
             return Response({'detail': 'email is not a valid email address'}, status=400)
 
         token = uuid.uuid4()
         expires_at = timezone.now() + timedelta(days=1)
 
-        invitation = Invitation(email=invited_user, token=token, expires_at=expires_at)
+        invitation = Invitation(user=user, email=invited_user, token=token, expires_at=expires_at)
         invitation.save()
 
         user_exist = User.objects.filter(email=invited_user)
-        if user_exist.exist():
+        if user_exist.exists():
             invite_url = f'https://localhost:3000/login/invite/{token}'
 
             data = {
-                'username': user.name,
+                'username': user.username,
                 'invitation_link': invite_url
             }
             email_service = SendEmail()
@@ -1244,7 +1247,7 @@ class FamilyAddMemberViewSet(APIView):
             invite_url = f'https://localhost:3000/SignUp/invite/{token}'
 
             data = {
-                'username': user.name,
+                'username': user.username,
                 'invitation_link': invite_url
             }
             email_service = SendEmail()
