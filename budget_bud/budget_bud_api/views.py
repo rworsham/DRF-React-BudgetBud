@@ -1,3 +1,4 @@
+from django.core.serializers import serialize
 from rest_framework import generics, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -20,14 +21,18 @@ from .models import User, Family, Category, Budget, Transaction, Account, Balanc
     SavingsGoal, Invitation
 from .serializers import UserSerializer, UserCreateSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, \
     TransactionSerializer, \
-    AccountSerializer, ReportDashboardSerializer, SavingsGoalSerializer, BudgetGoalSerializer
+    AccountSerializer, ReportDashboardSerializer, SavingsGoalSerializer, BudgetGoalSerializer, \
+    InvitedUserCreateSerializer
 
 
 class UserCreateView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        serializer = UserCreateSerializer(data=request.data)
+        if request.data.get('token'):
+            serializer = InvitedUserCreateSerializer(data=request.data)
+        else:
+            serializer = UserCreateSerializer(data=request.data)
 
         if serializer.is_valid():
             user = serializer.save()

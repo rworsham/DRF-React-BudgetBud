@@ -1,6 +1,10 @@
 from rest_framework import serializers
+from django.db import transaction
 from django.contrib.auth.models import User
-from .models import Family, Category, Budget, Transaction, Account, ReportDashboard, Report, SavingsGoal, BudgetGoal
+from django.utils import timezone
+import uuid
+from .models import Family, Category, Budget, Transaction, Account, ReportDashboard, Report, SavingsGoal, BudgetGoal, \
+    Invitation
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -29,6 +33,59 @@ class UserCreateSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
         return user
+
+
+class InvitedUserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+    token = serializers.UUIDField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['email', 'username', 'first_name', 'last_name', 'password', 'token']
+
+    def validate_token(self, value):
+        if not isinstance(value, uuid.UUID):
+            raise serializers.ValidationError("Invalid token.")
+
+        invitation = Invitation.objects.filter(token=value).first()
+        if invitation:
+            if self.initial_data.get('email') == invitation.email:
+                if invitation.expires_at < timezone.now():
+                    raise serializers.ValidationError("The invitation link is expired.")
+            else:
+                raise serializers.ValidationError("The provided email does not match the email on the invitation.")
+        else:
+            raise serializers.ValidationError("The invitation token is invalid or does not exist.")
+        return value
+
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("A user with that username already exists.")
+        return value
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with that email already exists.")
+        return value
+
+    def create(self, validated_data):
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=validated_data['email'],
+                username=validated_data['username'],
+                first_name=validated_data['first_name'],
+                last_name=validated_data['last_name'],
+                password=validated_data['password']
+            )
+
+            token = validated_data.get('token')
+            invitation = Invitation.objects.get(token=token)
+
+            family = invitation.user.families.first()
+            family.members.add(user)
+
+            invitation.delete()
+            return user
 
 
 class UserSerializer(serializers.ModelSerializer):
