@@ -1,5 +1,5 @@
-from django.core.serializers import serialize
 from rest_framework import generics, viewsets
+from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import NotFound
@@ -22,7 +22,25 @@ from .models import User, Family, Category, Budget, Transaction, Account, Balanc
 from .serializers import UserSerializer, UserCreateSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, \
     TransactionSerializer, \
     AccountSerializer, ReportDashboardSerializer, SavingsGoalSerializer, BudgetGoalSerializer, \
-    InvitedUserCreateSerializer
+    InvitedUserCreateSerializer, InvitedUserSignInSerializer
+
+
+class LoginView(TokenObtainPairView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        print(request)
+        response = super().post(request, *args, **kwargs)
+
+        if response.status_code == 200:
+            if request.data.get('token'):
+                serializer = InvitedUserSignInSerializer(data=request.data)
+                if serializer.is_valid():
+                    serializer.save()
+                else:
+                    return Response(serializer.errors)
+
+        return response
 
 
 class UserCreateView(APIView):

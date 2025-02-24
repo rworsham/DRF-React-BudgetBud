@@ -35,6 +35,39 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return user
 
 
+class InvitedUserSignInSerializer(serializers.ModelSerializer):
+    token = serializers.UUIDField(write_only=True)
+
+    class Meta:
+        model = Invitation
+        fields = ['token']
+
+    def validate_token(self, value):
+        if not isinstance(value, uuid.UUID):
+            raise serializers.ValidationError("Invalid token.")
+
+        invitation = Invitation.objects.filter(token=value).first()
+        if invitation:
+            if self.initial_data.get('username') == User.objects.get(email=invitation.email).username:
+                if invitation.expires_at < timezone.now():
+                    raise serializers.ValidationError("The invitation link is expired.")
+            else:
+                raise serializers.ValidationError("The user does not match the invited user on the invitation.")
+        else:
+            raise serializers.ValidationError("The invitation token is invalid or does not exist.")
+        return value
+
+    def create(self, validated_data):
+        user = User.objects.get(username=self.initial_data.get('username'))
+        token = validated_data.get('token')
+        invitation = Invitation.objects.get(token=token)
+
+        family = invitation.user.families.first()
+        family.members.add(user)
+
+        invitation.delete()
+        return user
+
 class InvitedUserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     token = serializers.UUIDField(write_only=True)
