@@ -146,11 +146,18 @@ class ReportChoices(APIView):
 
 
 class FamilyView(generics.ListAPIView):
-    serializer_class = FamilySerializer
+    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
+    def get(self, request, *args, **kwargs):
         user = self.request.user
-        return Family.objects.filter(members=user)
+        family = Family.objects.filter(members=user).first()
+
+        if family:
+            members = family.members.all()
+            members_data = [UserSerializer(member).data for member in members]
+            return Response(members_data)
+        else:
+            return Response([])
 
 
 class ProfileView(APIView):
