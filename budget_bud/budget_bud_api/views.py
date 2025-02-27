@@ -160,6 +160,42 @@ class FamilyView(generics.ListAPIView):
             return Response([])
 
 
+class FamilyOverviewView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = self.request.user
+        family = Family.objects.filter(members=user).first()
+
+        if family:
+            members = family.members.all()
+            members_data = []
+
+            for member in members:
+                member_name = member.username
+                transaction_count = Transaction.objects.filter(user=member).count()
+                member_info = {
+                    "name": member_name,
+                    "transaction_count": transaction_count,
+                    "categories": []
+                }
+
+                categories = Category.objects.filter(user__in=members)
+                for category in categories:
+                    category_count = Transaction.objects.filter(category=category, user=member).count()
+                    category_info = {
+                        "category": category.name,
+                        "category_count": category_count
+                    }
+                    member_info["categories"].append(category_info)
+
+                members_data.append(member_info)
+
+            return Response(members_data, status=200)
+        else:
+            return Response([])
+
+
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
