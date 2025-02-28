@@ -171,25 +171,28 @@ class FamilyOverviewView(APIView):
             members = family.members.all()
             members_data = []
 
-            for member in members:
-                member_name = member.username
-                transaction_count = Transaction.objects.filter(user=member).count()
-                member_info = {
-                    "name": member_name,
-                    "transaction_count": transaction_count,
-                    "categories": []
-                }
+            if self.request.GET.get('Category', 'false') == 'true':
+                for member in members:
+                    member_name = member.username
 
-                categories = Category.objects.filter(user__in=members)
-                for category in categories:
-                    category_count = Transaction.objects.filter(category=category, user=member).count()
-                    category_info = {
-                        "category": category.name,
-                        "category_count": category_count
-                    }
-                    member_info["categories"].append(category_info)
+                    for category in Category.objects.filter(user__in=members):
+                        category_count = Transaction.objects.filter(category=category, user=member).count()
+                        if category_count > 0:
+                            members_data.append({
+                                "name": member_name,
+                                "category": category.name,
+                                "category_count": category_count
+                            })
 
-                members_data.append(member_info)
+            elif self.request.GET.get('Transaction', 'false') == 'true':
+                for member in members:
+                    member_name = member.username
+                    transaction_count = Transaction.objects.filter(user=member).count()
+
+                    members_data.append({
+                        "name": member_name,
+                        "transaction_count": transaction_count
+                    })
 
             return Response(members_data, status=200)
         else:
