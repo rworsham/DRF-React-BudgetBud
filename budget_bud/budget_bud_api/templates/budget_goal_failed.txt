@@ -1,0 +1,10 @@
+Hello!
+
+Hi {{ username }}, it looks like you haven't quite reached your savings goal.
+
+For budget {{ budget }}, you were short by ${{ over_amount }} of your target. Don't worry, you've still made great progress!
+
+Keep going, you're on the right track!
+
+------------------------------------------------------------
+This is an automated message, please do not reply.

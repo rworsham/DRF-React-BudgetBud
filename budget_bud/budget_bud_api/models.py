@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from decimal import Decimal
 import uuid
+from budget_bud.budget_bud_api.utils import SendEmail
 
 
 class Family(models.Model):
@@ -50,19 +51,47 @@ class BudgetGoal(models.Model):
 
     def update_goal_progress(self, amount):
         self.current_balance += amount
-        self.check_goal_met()
+        self.save()
 
     def check_goal_met(self):
         if self.budget.balance >= self.target_balance and not self.goal_met:
             self.goal_met = True
             self.save()
             self.send_alert()
+        else:
+            self.send_alert()
 
     def send_alert(self):
         if not self.alert_sent:
-            print("Email sent to user - will be expanded upon")
-            self.alert_sent = True
-            self.save()
+            if self.current_balance < self.target_balance:
+                over_amount = self.target_balance - self.current_balance
+                data = {
+                    "username": self.budget.user.username,
+                    "budget": self.budget.name,
+                    "over_amount": over_amount
+                }
+                email_service = SendEmail()
+                try:
+                    email_service.send_mail(recipient=self.budget.user.email, message_type="BudgetGoalFailed", data=data)
+                    self.alert_sent = True
+                    self.save()
+                except Exception as e:
+                    print(f"Error sending alert: {e}")
+            else:
+                amount_saved = self.current_balance - self.target_balance
+                data = {
+                    "username": self.budget.user.username,
+                    "budget": self.budget.name,
+                    "amount_saved": amount_saved
+                }
+                email_service = SendEmail()
+                try:
+                    email_service.send_mail(recipient=self.budget.user.email, message_type="BudgetGoal", data=data)
+                    self.alert_sent = True
+                    self.save()
+                except Exception as e:
+                    print(f"Error sending alert: {e}")
+
 
 
 class Transaction(models.Model):
@@ -126,7 +155,7 @@ class Transaction(models.Model):
         if savings_goals.exists():
             for goal in savings_goals:
                 goal.current_balance = account.balance
-                goal.check_goal_met()
+                goal.save()
 
         budget = self.budget
         budget_goals = budget.budget_goals.all()
@@ -135,8 +164,10 @@ class Transaction(models.Model):
                 if goal.budget == budget:
                     if self.transaction_type == 'income':
                         goal.update_goal_progress(Decimal(self.amount))
+                        goal.save()
                     elif self.transaction_type == 'expense':
                         goal.update_goal_progress(-Decimal(self.amount))
+                        goal.save()
 
 
 class Account(models.Model):
@@ -183,13 +214,39 @@ class SavingsGoal(models.Model):
             self.goal_met = True
             self.save()
             self.send_alert()
+        else:
+            self.send_alert()
 
     def send_alert(self):
         if not self.alert_sent:
-            print("Email sent to user - will be expanded upon")
-            self.alert_sent = True
-            self.save()
-
+            if self.current_balance < self.target_balance:
+                over_amount = self.target_balance - self.current_balance
+                data = {
+                    "username": self.account.user.username,
+                    "account": self.account.name,
+                    "over_amount": over_amount
+                }
+                email_service = SendEmail()
+                try:
+                    email_service.send_mail(recipient=self.account.user.email, message_type="SavingsGoalFailed", data=data)
+                    self.alert_sent = True
+                    self.save()
+                except Exception as e:
+                    print(f"Error sending alert: {e}")
+            else:
+                amount_saved = self.current_balance - self.target_balance
+                data = {
+                    "username": self.account.user.username,
+                    "account": self.account.name,
+                    "amount_saved": amount_saved
+                }
+                email_service = SendEmail()
+                try:
+                    email_service.send_mail(recipient=self.account.user.email, message_type="SavingsGoal", data=data)
+                    self.alert_sent = True
+                    self.save()
+                except Exception as e:
+                    print(f"Error sending alert: {e}")
 
 class Report(models.Model):
     name = models.CharField(max_length=50, unique=True)

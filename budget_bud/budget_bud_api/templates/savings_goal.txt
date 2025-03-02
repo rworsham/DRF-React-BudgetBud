@@ -1,0 +1,10 @@
+Hello!
+
+Good Job {{ username }}! You've met a Savings Goal you set!
+
+Congratulations on your hard work! For account {{ account }} you came in under ${{ amount_saved }} below your goal!
+
+Keep up the good work!
+
+------------------------------------------------------------
+This is an automated message, please do not reply.

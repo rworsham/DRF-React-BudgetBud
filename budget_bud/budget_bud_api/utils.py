@@ -16,6 +16,22 @@ class SendEmail:
             subject = 'Invitation'
             html_message = render_to_string('invitation_existing_user.html', data)
             text_message = render_to_string('invitation_existing_user.txt', data)
+        elif message_type == 'SavingsGoal':
+            subject = 'Savings Goal Met!'
+            html_message = render_to_string('savings_goal.html', data)
+            text_message = render_to_string('savings_goals.txt', data)
+        elif message_type == 'SavingsGoalFailed':
+            subject = 'Savings Goal'
+            html_message = render_to_string('savings_goal_failed.html', data)
+            text_message = render_to_string('savings_goals_failed.txt', data)
+        elif message_type == 'BudgetGoal':
+            subject = 'Budget Goal Met!'
+            html_message = render_to_string('budget_goal.html', data)
+            text_message = render_to_string('budget_goal.txt', data)
+        elif message_type == 'BudgetGoalFailed':
+            subject = 'Budget Goal'
+            html_message = render_to_string('budget_goal_failed.html', data)
+            text_message = render_to_string('budget_goal_failed.txt', data)
 
         from_email = settings.EMAIL_HOST_USER
         recipient_list = [recipient]
