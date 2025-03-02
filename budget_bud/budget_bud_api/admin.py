@@ -1,5 +1,7 @@
 from django.contrib import admin
 from .models import Report, ReportDashboard
+from django_apscheduler.models import DjangoJob, DjangoJobExecution
+
 
 class ReportAdmin(admin.ModelAdmin):
     list_display = ('name', 'display_name')
