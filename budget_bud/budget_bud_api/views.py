@@ -1,3 +1,5 @@
+from unicodedata import category
+
 from rest_framework import generics, viewsets
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.response import Response
@@ -361,6 +363,71 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class CategoryDataView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = self.request.user
+        category_data = []
+        if self.request.GET.get('familyView', 'false') == 'true':
+            families = user.families.all()
+            members = []
+            for family in families:
+                members.extend(family.members.all())
+            categories = Category.objects.filter(user__in=members).distinct()
+            for category in categories:
+                income_transactions = Transaction.objects.filter(
+                    transaction_type='income',
+                    category_id=category.id,
+                    user__in=members
+                ).distinct('id')
+
+                expense_transactions = Transaction.objects.filter(
+                    transaction_type='expense',
+                    category_id=category.id,
+                    user__in=members
+                ).distinct('id')
+
+                total_income = sum(transaction.amount for transaction in income_transactions)
+
+                total_expenses = sum(transaction.amount for transaction in expense_transactions)
+
+                balance = total_income - total_expenses
+                category_data.append({
+                    "id": category.id,
+                    "name": category.name,
+                    "balance": balance
+                })
+            return Response(category_data, status=200)
+        else:
+            categories = Category.objects.filter(user=user).distinct()
+            for category in categories:
+                income_transactions = Transaction.objects.filter(
+                    transaction_type='income',
+                    category_id=category.id,
+                    user=user
+                ).distinct('id')
+
+                expense_transactions = Transaction.objects.filter(
+                    transaction_type='expense',
+                    category_id=category.id,
+                    user=user
+                ).distinct('id')
+
+                total_income = sum(transaction.amount for transaction in income_transactions)
+
+                total_expenses = sum(transaction.amount for transaction in expense_transactions)
+
+                balance = total_income - total_expenses
+                category_data.append({
+                    "id": category.id,
+                    "name": category.name,
+                    "balance": balance
+                })
+            return Response(category_data, status=200)
+
 
 class BudgetViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]

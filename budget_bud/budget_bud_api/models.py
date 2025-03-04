@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from decimal import Decimal
 import uuid
-from budget_bud.budget_bud_api.utils import SendEmail
+from .utils import SendEmail
 
 
 class Family(models.Model):
