@@ -429,6 +429,140 @@ class CategoryDataView(APIView):
             return Response(category_data, status=200)
 
 
+class CategoryHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self, start_date=None, end_date=None, category_id=None, family_view=False, family=None):
+        user = self.request.user
+        if not start_date or not end_date:
+            current_date = datetime.today()
+            start_date = current_date.replace(day=1).date()
+            next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+            end_date = (next_month - timedelta(days=1)).date()
+
+        if not category_id:
+            raise ValueError("Category ID is required.")
+
+        if family_view and family:
+            queryset = Transaction.objects.filter(
+                family=family.id,
+                category_id=category_id,
+                date__gte=start_date,
+                date__lte=end_date
+            )
+            return queryset
+        else:
+            queryset = Transaction.objects.filter(
+                user=user,
+                category_id=category_id,
+                date__gte=start_date,
+                date__lte=end_date
+            )
+            return queryset
+
+
+    def post(self, request, *args, **kwargs):
+        category_id = request.data.get('category_id')
+        start_date = request.data.get('start_date', None)
+        end_date = request.data.get('end_date', None)
+        family_view = request.GET.get('familyView', 'false') == 'true'
+
+        family = None
+        if family_view:
+            try:
+                family = request.user.families.first()
+            except Family.DoesNotExist:
+                return Response({"detail": "Family not found for the user."}, status=404)
+
+        if not category_id:
+            return Response(
+                {"detail": "Category ID required"},
+                status=400
+            )
+
+        if not start_date or not end_date:
+            current_date = datetime.today()
+            start_date = current_date.replace(day=1).date()
+            next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+            end_date = (next_month - timedelta(days=1)).date()
+
+        queryset = self.get_queryset(
+            start_date=start_date,
+            end_date=end_date,
+            category_id=category_id,
+            family_view=family_view,
+            family=family
+        )
+
+        aggregated_data = (
+            queryset
+            .values('id', 'amount', 'budget__name', 'category__name', 'date', 'transaction_type', 'description')
+            .order_by('date')
+        )
+
+        if request.data.get('format') == 'pdf':
+            return self.create_pdf(aggregated_data, start_date, end_date)
+
+        response_data = [
+            {
+                "id": entry['id'],
+                "amount": entry['amount'],
+                "description": entry['description'],
+                "budget": entry['budget__name'],
+                "category": entry['category__name'],
+                "date": entry['date'],
+                "transaction_type": entry['transaction_type'],
+            }
+            for entry in aggregated_data
+        ]
+
+        return Response(response_data)
+
+
+    def create_pdf(self, aggregated_data, start_date, end_date):
+        buffer = BytesIO()
+
+        p = canvas.Canvas(buffer, pagesize=landscape(letter))
+        margin_left = 30
+        margin_top = 550
+        column_width = 70
+        headers = ["ID", "Amount", "Description", "Budget", "Category", "Date", "Type"]
+
+        p.setFont("Helvetica", 16)
+        p.drawString(margin_left + 100, margin_top, f"Category History Report: {start_date} to {end_date}")
+
+        p.setFont("Helvetica", 12)
+        y_position = margin_top - 30
+
+        for index, header in enumerate(headers):
+            p.drawString(margin_left + (index * column_width), y_position, header)
+
+        y_position -= 20
+
+        for entry in aggregated_data:
+            p.drawString(margin_left, y_position, str(entry['id']))
+            p.drawString(margin_left + column_width, y_position, str(entry['amount']))
+            p.drawString(margin_left + 2 * column_width, y_position, entry['description'][:30])
+            p.drawString(margin_left + 3 * column_width, y_position, entry['budget__name'])
+            p.drawString(margin_left + 4 * column_width, y_position, entry['category__name'])
+            p.drawString(margin_left + 5 * column_width, y_position, str(entry['date']))
+            p.drawString(margin_left + 6 * column_width, y_position, entry['transaction_type'])
+
+            y_position -= 20
+
+            if y_position < 100:
+                p.showPage()
+                y_position = margin_top
+                for index, header in enumerate(headers):
+                    p.drawString(margin_left + (index * column_width), y_position, header)
+                y_position -= 20
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+        response = HttpResponse(buffer.read(), content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="category_history_report.pdf"'
+        return response
+
 class BudgetViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = BudgetSerializer
