@@ -1463,9 +1463,6 @@ class AccountsOverviewReportView(APIView):
 
                 formatted_entry[account.name] = balance
 
-                if balance is not None:
-                    previous_balances[account.name] = balance
-
             data.append(formatted_entry)
 
         return Response(data)
