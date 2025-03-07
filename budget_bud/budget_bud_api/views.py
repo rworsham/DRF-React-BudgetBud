@@ -563,6 +563,68 @@ class CategoryHistoryView(APIView):
         response['Content-Disposition'] = 'attachment; filename="category_history_report.pdf"'
         return response
 
+
+class CategoryHistoryLineChartView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = self.request.user
+        today = datetime.today().date()
+        first_day_of_month = today.replace(day=1)
+        last_day_of_month = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+        family_view = request.GET.get('familyView', 'false') == 'true'
+
+        family = None
+        if family_view:
+            try:
+                family = request.user.families.first()
+            except Family.DoesNotExist:
+                return Response({"detail": "Family not found for the user."}, status=404)
+
+        if family_view and family:
+            families = user.families.all()
+            members = []
+            for family in families:
+                members.extend(family.members.all())
+            categories = Category.objects.filter(user__in=members).distinct()
+        else:
+            categories = Category.objects.filter(user=request.user)
+
+        date_balances = defaultdict(lambda: {category.name: None for category in categories})
+
+        transactions = Transaction.objects.filter(
+            category__in=categories,
+            date__gte=first_day_of_month,
+            date__lte=last_day_of_month
+        )
+
+        for history in transactions:
+            if date_balances[history.date][history.category.name] is None:
+                date_balances[history.date][history.category.name] = 0
+            date_balances[history.date][history.category.name] += history.amount
+
+        data = []
+        for single_date in self._get_dates_in_month(first_day_of_month, last_day_of_month):
+            formatted_entry = {
+                'name': single_date.strftime('%Y-%m-%d'),
+            }
+
+            for category in categories:
+                balance = date_balances[single_date].get(category.name, None)
+
+                formatted_entry[category.name] = balance
+
+            data.append(formatted_entry)
+
+        return Response(data)
+
+    def _get_dates_in_month(self, start_date, end_date):
+        current_date = start_date
+        while current_date <= end_date:
+            yield current_date
+            current_date += timedelta(days=1)
+
+
 class BudgetViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = BudgetSerializer

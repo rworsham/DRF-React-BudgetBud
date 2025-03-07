@@ -6,7 +6,8 @@ from .views import UserListCreateView, UserCreateView, UserRetrieveUpdateDestroy
     TransactionViewSet, AccountViewSet, AllTransactionViewSet, TransactionBarChartViewSet, TransactionTableViewSet, \
     TransactionPieChartViewSet, BudgetTransactionView, FamilyCreateViewSet, AccountsOverviewReportView, UserReportsView, \
     ReportChoices, AccountHistory, SavingsGoalView, ProfileView, BudgetGoalView, BudgetHistoryView, \
-    FamilyAddMemberViewSet, LoginView, FamilyOverviewView, FamilyHistoryView, CategoryDataView, CategoryHistoryView
+    FamilyAddMemberViewSet, LoginView, FamilyOverviewView, FamilyHistoryView, CategoryDataView, CategoryHistoryView, \
+    CategoryHistoryLineChartView
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename="category")
@@ -35,6 +36,7 @@ urlpatterns = [
     path('api/budget-transaction-overview/', BudgetTransactionView.as_view(), name='budget-transaction-overview'),
     path('api/category/data/', CategoryDataView.as_view(), name='category-data'),
     path('api/category/history/', CategoryHistoryView.as_view(), name='category-history'),
+    path('api/category/history/line-chart/', CategoryHistoryLineChartView.as_view(), name='category-history-line-chart'),
     path('api/transaction-bar-chart/', TransactionBarChartViewSet.as_view(), name='transaction-bar-chart'),
     path('api/transaction-table-view/', TransactionTableViewSet.as_view(), name='transaction-table-view'),
     path('api/transaction-pie-chart/', TransactionPieChartViewSet.as_view(), name='transaction-pie-chart'),

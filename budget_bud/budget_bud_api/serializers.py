@@ -152,7 +152,7 @@ class BudgetSerializer(serializers.ModelSerializer):
 class BudgetGoalSerializer(serializers.ModelSerializer):
     class Meta:
         model = BudgetGoal
-        fields = ['budget', 'target_balance']
+        fields = ['budget', 'target_balance', 'start_date', 'end_date']
 
 
 class TransactionSerializer(serializers.ModelSerializer):
@@ -227,7 +227,7 @@ class AccountSerializer(serializers.ModelSerializer):
 class SavingsGoalSerializer(serializers.ModelSerializer):
     class Meta:
         model = SavingsGoal
-        fields = ['account', 'target_balance']
+        fields = ['account', 'target_balance', 'start_date', 'end_date']
 
 
 class ReportDashboardSerializer(serializers.ModelSerializer):
