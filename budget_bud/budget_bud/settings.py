@@ -68,6 +68,10 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_RENDERER_CLASSES': (
+        'budget_bud_api.renderers.CustomJSONRenderer',
+        'rest_framework.renderers.JSONRenderer',
+    ),
 }
 
 CORS_ALLOWED_ORIGINS = [

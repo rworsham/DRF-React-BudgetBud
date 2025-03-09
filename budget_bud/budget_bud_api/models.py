@@ -139,25 +139,6 @@ class Transaction(models.Model):
                 self.next_occurrence = None
         super().save(*args, **kwargs)
 
-        # account = self.account
-        # if self.transaction_type == 'income':
-        #     new_balance = account.balance + self.amount
-        # elif self.transaction_type == 'expense':
-        #     new_balance = account.balance - self.amount
-        # else:
-        #     raise ValueError("Invalid transaction type.")
-        #
-        # BalanceHistory.objects.create(account=account, balance=new_balance, date=self.date)
-        #
-        # account.balance = new_balance
-        # account.save()
-        #
-        # savings_goals = account.savings_goals.all()
-        # if savings_goals.exists():
-        #     for goal in savings_goals:
-        #         goal.current_balance = account.balance
-        #         goal.save()
-
         budget = self.budget
         budget_goals = budget.budget_goals.all()
         if budget_goals.exists():
