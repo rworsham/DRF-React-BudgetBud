@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models import Sum
 from django.utils import timezone
 from decimal import Decimal
 import uuid
@@ -138,24 +139,24 @@ class Transaction(models.Model):
                 self.next_occurrence = None
         super().save(*args, **kwargs)
 
-        account = self.account
-        if self.transaction_type == 'income':
-            new_balance = account.balance + self.amount
-        elif self.transaction_type == 'expense':
-            new_balance = account.balance - self.amount
-        else:
-            raise ValueError("Invalid transaction type.")
-
-        BalanceHistory.objects.create(account=account, balance=new_balance, date=self.date)
-
-        account.balance = new_balance
-        account.save()
-
-        savings_goals = account.savings_goals.all()
-        if savings_goals.exists():
-            for goal in savings_goals:
-                goal.current_balance = account.balance
-                goal.save()
+        # account = self.account
+        # if self.transaction_type == 'income':
+        #     new_balance = account.balance + self.amount
+        # elif self.transaction_type == 'expense':
+        #     new_balance = account.balance - self.amount
+        # else:
+        #     raise ValueError("Invalid transaction type.")
+        #
+        # BalanceHistory.objects.create(account=account, balance=new_balance, date=self.date)
+        #
+        # account.balance = new_balance
+        # account.save()
+        #
+        # savings_goals = account.savings_goals.all()
+        # if savings_goals.exists():
+        #     for goal in savings_goals:
+        #         goal.current_balance = account.balance
+        #         goal.save()
 
         budget = self.budget
         budget_goals = budget.budget_goals.all()
@@ -168,6 +169,53 @@ class Transaction(models.Model):
                     elif self.transaction_type == 'expense':
                         goal.update_goal_progress(-Decimal(self.amount))
                         goal.save()
+        account = self.account
+        self.adjust_balance_history(account)
+
+    def adjust_balance_history(self, account):
+
+        current_balance = account.balance
+        future_transactions = Transaction.objects.filter(account=account, date__gt=self.date).order_by('date')
+
+        if future_transactions:
+            future_expense = Transaction.objects.filter(account=account, date__gt=self.date, transaction_type='expense').aggregate(total=Sum('amount'))
+            future_income = Transaction.objects.filter(account=account, date__gt=self.date, transaction_type='income').aggregate(total=Sum('amount'))
+
+            expense_total = future_expense['total'] if future_expense['total'] is not None else 0
+            income_total = future_income['total'] if future_income['total'] is not None else 0
+
+            current_balance += expense_total - income_total
+            if self.transaction_type == 'income':
+                current_balance += self.amount
+            elif self.transaction_type == 'expense':
+                current_balance -= self.amount
+
+            BalanceHistory.objects.create(account=account, balance=current_balance, date=self.date)
+
+            for transaction in future_transactions:
+                if transaction.transaction_type == 'income':
+                    current_balance += transaction.amount
+                    entry = BalanceHistory.objects.get(date=transaction.date)
+                    entry.balance = current_balance
+                    entry.save()
+                elif transaction.transaction_type == 'expense':
+                    current_balance -= transaction.amount
+                    entry = BalanceHistory.objects.get(date=transaction.date)
+                    entry.balance = current_balance
+                    entry.save()
+
+                account.balance = current_balance
+                account.save()
+
+        else:
+            if self.transaction_type == 'income':
+                current_balance = account.balance + self.amount
+            elif self.transaction_type == 'expense':
+                current_balance = account.balance - self.amount
+
+            BalanceHistory.objects.create(account=account, balance=current_balance, date=self.date)
+            account.balance = current_balance
+            account.save()
 
 
 class Account(models.Model):
