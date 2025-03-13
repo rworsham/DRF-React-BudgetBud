@@ -159,8 +159,8 @@ class Transaction(models.Model):
         future_transactions = Transaction.objects.filter(account=account, date__gt=self.date).order_by('date')
 
         if future_transactions:
-            future_expense = Transaction.objects.filter(account=account, date__gt=self.date, transaction_type='expense').aggregate(total=Sum('amount'))
-            future_income = Transaction.objects.filter(account=account, date__gt=self.date, transaction_type='income').aggregate(total=Sum('amount'))
+            future_expense = Transaction.objects.filter(account=account, date__gte=self.date, transaction_type='expense').aggregate(total=Sum('amount'))
+            future_income = Transaction.objects.filter(account=account, date__gte=self.date, transaction_type='income').aggregate(total=Sum('amount'))
 
             expense_total = future_expense['total'] if future_expense['total'] is not None else 0
             income_total = future_income['total'] if future_income['total'] is not None else 0
@@ -176,14 +176,16 @@ class Transaction(models.Model):
             for transaction in future_transactions:
                 if transaction.transaction_type == 'income':
                     current_balance += transaction.amount
-                    entry = BalanceHistory.objects.get(date=transaction.date)
-                    entry.balance = current_balance
-                    entry.save()
+                    entries = BalanceHistory.objects.filter(date=transaction.date, account=account).order_by('-id').last()
+                    for entry in entries:
+                        entry.balance = current_balance
+                        entry.save()
                 elif transaction.transaction_type == 'expense':
                     current_balance -= transaction.amount
-                    entry = BalanceHistory.objects.get(date=transaction.date)
-                    entry.balance = current_balance
-                    entry.save()
+                    entries = BalanceHistory.objects.filter(date=transaction.date, account=account)
+                    for entry in entries:
+                        entry.balance = current_balance
+                        entry.save()
 
                 account.balance = current_balance
                 account.save()
