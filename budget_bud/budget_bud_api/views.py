@@ -1309,6 +1309,7 @@ class TransactionPieChartViewSet(APIView):
         if family_view and family:
             queryset = Transaction.objects.filter(
                 family=family.id,
+                transaction_type='expense',
                 date__gte = start_date,
                 date__lte = end_date
             )
@@ -1316,6 +1317,7 @@ class TransactionPieChartViewSet(APIView):
         else:
             queryset = Transaction.objects.filter(
                 user=user,
+                transaction_type='expense',
                 date__gte=start_date,
                 date__lte=end_date
             )
