@@ -333,13 +333,20 @@ class ProfileView(APIView):
         user = self.request.user
 
         transaction_count = Transaction.objects.filter(user=user).count()
+        joined_date = user.date_joined
+        formatted_date = joined_date.date().strftime('%Y-%m-%d')
         net_balance = Transaction.objects.filter(user=user).aggregate(Sum('amount'))['amount__sum']
         goal_met_count = SavingsGoal.objects.filter(account__user=user, goal_met=True).count()
+        net_income = Transaction.objects.filter(user=user , transaction_type='income').aggregate(Sum('amount'))['amount__sum']
+        net_expense = Transaction.objects.filter(user=user , transaction_type='expense').aggregate(Sum('amount'))['amount__sum']
 
         response_data = {
             'total_transactions': transaction_count,
+            'joined_date': formatted_date,
             'savings_goals_met': goal_met_count,
             'net_balance': net_balance,
+            'net_income': net_income,
+            'net_expense': net_expense
         }
 
         return Response(response_data)
