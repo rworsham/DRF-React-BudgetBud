@@ -911,6 +911,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
         return Transaction.objects.filter(user=user)
 
     def create(self, request, *args, **kwargs):
+        print(f"request : {request}")
         user = request.user
         data = request.data
         account_id = data.get('account')
@@ -1011,10 +1012,24 @@ class TransactionViewSet(viewsets.ModelViewSet):
         except Transaction.DoesNotExist:
             return Response({"error": "Transaction not found."}, status=404)
 
+        data = request.data.copy()
+
+        if self.request.GET.get('familyView', 'false') == 'true':
+            families = user.families.all()
+            members = []
+            for family in families:
+                members.extend(family.members.all())
+            if Family.objects.filter(members=user):
+                try:
+                    family = request.user.families.first()
+                    data['family'] = family.id
+                except Family.DoesNotExist:
+                    return Response({"detail": "Family not found for the user."}, status=404)
+        else:
+            data['family'] = None
+
         if transaction.user != user:
             return Response({"error": "You do not have permission to update this transaction."}, status=403)
-
-        data = request.data.copy()
 
         if 'category' in data:
             category_name = data.get('category')

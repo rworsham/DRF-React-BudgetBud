@@ -160,7 +160,7 @@ class TransactionSerializer(serializers.ModelSerializer):
     budget = serializers.PrimaryKeyRelatedField(queryset=Budget.objects.all())
     account = serializers.PrimaryKeyRelatedField(queryset=Account.objects.all())
     next_occurrence = serializers.DateField(required=False, allow_null=True)
-    family = serializers.PrimaryKeyRelatedField(queryset=Family.objects.all())
+    family = serializers.PrimaryKeyRelatedField(queryset=Family.objects.all(), required=False, allow_null=True)
 
     class Meta:
         model = Transaction
@@ -207,8 +207,10 @@ class TransactionSerializer(serializers.ModelSerializer):
         return transaction
 
     def update(self, instance, validated_data):
+        print(f"Validated Data {validated_data}")
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        print(instance)
         instance.save()
         return instance
 
