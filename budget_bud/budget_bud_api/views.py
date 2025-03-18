@@ -911,7 +911,6 @@ class TransactionViewSet(viewsets.ModelViewSet):
         return Transaction.objects.filter(user=user)
 
     def create(self, request, *args, **kwargs):
-        print(f"request : {request}")
         user = request.user
         data = request.data
         account_id = data.get('account')
@@ -1055,7 +1054,6 @@ class TransactionViewSet(viewsets.ModelViewSet):
             except Account.DoesNotExist:
                 return Response({"error": f"Account '{account_name}' does not exist."}, status=400)
 
-        print(f"Updated data: {data}")
         serializer = self.get_serializer(transaction, data=data)
 
         if serializer.is_valid():

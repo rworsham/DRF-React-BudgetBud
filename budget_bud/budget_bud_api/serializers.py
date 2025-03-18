@@ -207,10 +207,8 @@ class TransactionSerializer(serializers.ModelSerializer):
         return transaction
 
     def update(self, instance, validated_data):
-        print(f"Validated Data {validated_data}")
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        print(instance)
         instance.save()
         return instance
 
