@@ -156,7 +156,7 @@ class Transaction(models.Model):
     def adjust_balance_history(self, account):
 
         current_balance = account.balance
-        future_transactions = Transaction.objects.filter(account=account, date__gt=self.date).order_by('date')
+        future_transactions = Transaction.objects.filter(account=account, date__gte=self.date).order_by('date')
 
         if future_transactions:
             future_expense = Transaction.objects.filter(account=account, date__gte=self.date, transaction_type='expense').aggregate(total=Sum('amount'))
@@ -176,7 +176,7 @@ class Transaction(models.Model):
             for transaction in future_transactions:
                 if transaction.transaction_type == 'income':
                     current_balance += transaction.amount
-                    entries = BalanceHistory.objects.filter(date=transaction.date, account=account).order_by('-id').last()
+                    entries = BalanceHistory.objects.filter(date=transaction.date, account=account)
                     for entry in entries:
                         entry.balance = current_balance
                         entry.save()
