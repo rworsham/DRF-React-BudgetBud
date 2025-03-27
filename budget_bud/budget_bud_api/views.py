@@ -59,9 +59,9 @@ class UserCreateView(APIView):
             return Response({
                 'username': user.username,
                 'email': user.email
-            })
+            }, status=200)
 
-        return Response(serializer.errors)
+        return Response(serializer.errors, status=400)
 
 
 class UserListCreateView(generics.ListCreateAPIView):
