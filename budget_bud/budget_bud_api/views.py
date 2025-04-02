@@ -1673,9 +1673,13 @@ class FamilyCreateViewSet(APIView):
 
         if serializer.is_valid():
             family = serializer.save()
-            family.members.add(user)
+            try:
+                new_family = Family.objects.get(name=family)
+                new_family.members.add(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
             return Response({
-                'family_name': family.name
+                'family_name': new_family.name
             }, status=200)
 
         return Response(serializer.errors, status=400)
