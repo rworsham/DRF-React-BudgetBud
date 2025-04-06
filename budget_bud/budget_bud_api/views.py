@@ -1502,11 +1502,45 @@ class AccountViewSet(APIView):
 class AccountsOverviewReportView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
+    def get_queryset(self, start_date=None, end_date=None, family_view=False, family=None):
         user = self.request.user
-        today = datetime.today().date()
-        first_day_of_month = today.replace(day=1)
-        last_day_of_month = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+        if not start_date or not end_date:
+            current_date = datetime.today()
+            start_date = current_date.replace(day=1).date()
+            next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+            end_date = (next_month - timedelta(days=1)).date()
+
+        if family_view and family:
+            families = user.families.all()
+            members = []
+            for family in families:
+                members.extend(family.members.all())
+            accounts = Account.objects.filter(user__in=members).distinct()
+
+            date_balances = defaultdict(lambda: {account.name: None for account in accounts})
+
+            queryset = BalanceHistory.objects.filter(
+                account__in=accounts,
+                date__gte=start_date,
+                date__lte=end_date
+            )
+            return queryset, date_balances, accounts
+
+        else:
+            accounts = Account.objects.filter(user=user)
+
+            date_balances = defaultdict(lambda: {account.name: None for account in accounts})
+
+            queryset = BalanceHistory.objects.filter(
+                account__in=accounts,
+                date__gte=start_date,
+                date__lte=end_date
+            )
+            return queryset, date_balances, accounts
+
+    def post(self, request, *args, **kwargs):
+        start_date = request.data.get('start_date', None)
+        end_date = request.data.get('end_date', None)
         family_view = request.GET.get('familyView', 'false') == 'true'
 
         family = None
@@ -1516,31 +1550,25 @@ class AccountsOverviewReportView(APIView):
             except Family.DoesNotExist:
                 return Response({"detail": "Family not found for the user."}, status=404)
 
+        if start_date:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        if end_date:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
 
-        if family_view and family:
-            families = user.families.all()
-            members = []
-            for family in families:
-                members.extend(family.members.all())
-            accounts = Account.objects.filter(user__in=members).distinct()
-        else:
-            accounts = Account.objects.filter(user=request.user)
-
-        date_balances = defaultdict(lambda: {account.name: None for account in accounts})
-
-        balance_histories = BalanceHistory.objects.filter(
-            account__in=accounts,
-            date__gte=first_day_of_month,
-            date__lte=last_day_of_month
+        queryset, date_balances, accounts = self.get_queryset(
+            start_date=start_date,
+            end_date=end_date,
+            family_view=family_view,
+            family=family
         )
 
-        for history in balance_histories:
+        for history in queryset:
             date_balances[history.date][history.account.name] = history.balance
 
         previous_balances = {account.name: None for account in accounts}
 
         data = []
-        for single_date in self._get_dates_in_month(first_day_of_month, last_day_of_month):
+        for single_date in self._get_dates_in_month(start_date, end_date):
             formatted_entry = {
                 'name': single_date.strftime('%Y-%m-%d'),
             }
@@ -1555,7 +1583,7 @@ class AccountsOverviewReportView(APIView):
 
             data.append(formatted_entry)
 
-        return Response(data)
+        return Response(data, status=200)
 
     def _get_dates_in_month(self, start_date, end_date):
         current_date = start_date
