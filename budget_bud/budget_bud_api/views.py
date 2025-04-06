@@ -450,6 +450,65 @@ class CategoryDataView(APIView):
                 })
         return category_data
 
+    def get(self, request, *args, **kwargs):
+        user = self.request.user
+        category_data = []
+        if self.request.GET.get('familyView', 'false') == 'true':
+            families = user.families.all()
+            members = []
+            for family in families:
+                members.extend(family.members.all())
+            categories = Category.objects.filter(user__in=members).distinct()
+            for category in categories:
+                income_transactions = Transaction.objects.filter(
+                    transaction_type='income',
+                    category_id=category.id,
+                    user__in=members
+                ).distinct('id')
+
+                expense_transactions = Transaction.objects.filter(
+                    transaction_type='expense',
+                    category_id=category.id,
+                    user__in=members
+                ).distinct('id')
+
+                total_income = sum(transaction.amount for transaction in income_transactions)
+
+                total_expenses = sum(transaction.amount for transaction in expense_transactions)
+
+                balance = total_income - total_expenses
+                category_data.append({
+                    "id": category.id,
+                    "name": category.name,
+                    "balance": balance
+                })
+            return Response(category_data, status=200)
+        else:
+            categories = Category.objects.filter(user=user).distinct()
+            for category in categories:
+                income_transactions = Transaction.objects.filter(
+                    transaction_type='income',
+                    category_id=category.id,
+                    user=user
+                ).distinct('id')
+
+                expense_transactions = Transaction.objects.filter(
+                    transaction_type='expense',
+                    category_id=category.id,
+                    user=user
+                ).distinct('id')
+
+                total_income = sum(transaction.amount for transaction in income_transactions)
+
+                total_expenses = sum(transaction.amount for transaction in expense_transactions)
+
+                balance = total_income - total_expenses
+                category_data.append({
+                    "id": category.id,
+                    "name": category.name,
+                    "balance": balance
+                })
+            return Response(category_data, status=200)
 
     def post(self, request, *args, **kwargs):
         start_date = request.data.get('start_date', None)
@@ -648,6 +707,56 @@ class CategoryHistoryLineChartView(APIView):
             )
             return queryset, date_balances, categories
 
+    def get(self, request, *args, **kwargs):
+        user = self.request.user
+        today = datetime.today().date()
+        first_day_of_month = today.replace(day=1)
+        last_day_of_month = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+        family_view = request.GET.get('familyView', 'false') == 'true'
+
+        family = None
+        if family_view:
+            try:
+                family = request.user.families.first()
+            except Family.DoesNotExist:
+                return Response({"detail": "Family not found for the user."}, status=404)
+
+        if family_view and family:
+            families = user.families.all()
+            members = []
+            for family in families:
+                members.extend(family.members.all())
+            categories = Category.objects.filter(user__in=members).distinct()
+        else:
+            categories = Category.objects.filter(user=request.user)
+
+        date_balances = defaultdict(lambda: {category.name: None for category in categories})
+
+        transactions = Transaction.objects.filter(
+            category__in=categories,
+            date__gte=first_day_of_month,
+            date__lte=last_day_of_month
+        )
+
+        for history in transactions:
+            if date_balances[history.date][history.category.name] is None:
+                date_balances[history.date][history.category.name] = 0
+            date_balances[history.date][history.category.name] += history.amount
+
+        data = []
+        for single_date in self._get_dates_in_month(first_day_of_month, last_day_of_month):
+            formatted_entry = {
+                'name': single_date.strftime('%Y-%m-%d'),
+            }
+
+            for category in categories:
+                balance = date_balances[single_date].get(category.name, None)
+
+                formatted_entry[category.name] = balance
+
+            data.append(formatted_entry)
+
+        return Response(data)
 
     def post(self, request, *args, **kwargs):
         start_date = request.data.get('start_date', None)
@@ -1537,6 +1646,60 @@ class AccountsOverviewReportView(APIView):
                 date__lte=end_date
             )
             return queryset, date_balances, accounts
+
+    def get(self, request, *args, **kwargs):
+        user = self.request.user
+        today = datetime.today().date()
+        first_day_of_month = today.replace(day=1)
+        last_day_of_month = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+        family_view = request.GET.get('familyView', 'false') == 'true'
+
+        family = None
+        if family_view:
+            try:
+                family = request.user.families.first()
+            except Family.DoesNotExist:
+                return Response({"detail": "Family not found for the user."}, status=404)
+
+        if family_view and family:
+            families = user.families.all()
+            members = []
+            for family in families:
+                members.extend(family.members.all())
+            accounts = Account.objects.filter(user__in=members).distinct()
+        else:
+            accounts = Account.objects.filter(user=request.user)
+
+        date_balances = defaultdict(lambda: {account.name: None for account in accounts})
+
+        balance_histories = BalanceHistory.objects.filter(
+            account__in=accounts,
+            date__gte=first_day_of_month,
+            date__lte=last_day_of_month
+        )
+
+        for history in balance_histories:
+            date_balances[history.date][history.account.name] = history.balance
+
+        previous_balances = {account.name: None for account in accounts}
+
+        data = []
+        for single_date in self._get_dates_in_month(first_day_of_month, last_day_of_month):
+            formatted_entry = {
+                'name': single_date.strftime('%Y-%m-%d'),
+            }
+
+            for account in accounts:
+                balance = date_balances[single_date].get(account.name, None)
+
+                if balance is None and previous_balances.get(account.name) is not None:
+                    balance = previous_balances[account.name]
+
+                formatted_entry[account.name] = balance
+
+            data.append(formatted_entry)
+
+        return Response(data)
 
     def post(self, request, *args, **kwargs):
         start_date = request.data.get('start_date', None)
