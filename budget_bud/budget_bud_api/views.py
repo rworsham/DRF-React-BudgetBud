@@ -165,6 +165,80 @@ class FamilyView(generics.ListAPIView):
 class FamilyOverviewView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self, start_date=None, end_date=None, category=False, transaction=False, family=None):
+        if not start_date or not end_date:
+            current_date = datetime.today()
+            start_date = current_date.replace(day=1).date()
+            next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+            end_date = (next_month - timedelta(days=1)).date()
+
+        members = family.members.all()
+        members_data = []
+
+        if category:
+            for member in members:
+                member_name = member.username
+                for category in Category.objects.filter(user__in=members):
+                    category_count = Transaction.objects.filter(
+                        category=category,
+                        user=member,
+                        date__gte=start_date,
+                        date__lte=end_date
+                    ).count()
+                    if category_count > 0:
+                        members_data.append({
+                            "name": member_name,
+                            "category": category.name,
+                            "category_count": category_count
+                        })
+
+        elif transaction:
+            for member in members:
+                member_name = member.username
+                transaction_count = Transaction.objects.filter(
+                    user=member,
+                    date__gte=start_date,
+                    date__lte=end_date
+                ).count()
+                members_data.append({
+                    "name": member_name,
+                    "transaction_count": transaction_count
+                })
+        return members_data
+
+    def post(self, request, *args, **kwargs):
+        print(f"Request = {request.data}")
+        user = self.request.user
+        start_date = request.data.get('start_date', None)
+        end_date = request.data.get('end_date', None)
+
+        try:
+            family = Family.objects.filter(members=user).first()
+        except Family.DoesNotExist:
+            return Response({"detail": "Family not found for the user."}, status=404)
+
+        if self.request.query_params.get('Category'):
+            data = self.get_queryset(
+                category=True,
+                start_date=start_date,
+                end_date=end_date,
+                family=family
+            )
+            return Response(data, status=200)
+        elif self.request.query_params.get('Transaction'):
+            data = self.get_queryset(
+                transaction=True,
+                start_date=start_date,
+                end_date=end_date,
+                family=family
+            )
+            return Response(data, status=200)
+        else:
+            return Response(
+                {"detail": "Invalid Request, Missing Parameter'."},
+                status=400
+            )
+
     def get(self, request, *args, **kwargs):
         user = self.request.user
         family = Family.objects.filter(members=user).first()
