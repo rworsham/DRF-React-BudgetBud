@@ -163,6 +163,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = os.getenv('MEDIA_URL')
 MEDIA_ROOT = BASE_DIR / os.getenv('MEDIA_ROOT')
