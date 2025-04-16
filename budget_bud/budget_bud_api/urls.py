@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/budget-goal/', BudgetGoalView.as_view(), name='budget-goal'),
     path('api/budget-history/', BudgetHistoryView.as_view(), name='budget-history'),
     path('api/budget-transaction-overview/', BudgetTransactionView.as_view(), name='budget-transaction-overview'),
+    path('api/contact/', ContactView.as_view(), name='contact'),
     path('api/category/data/', CategoryDataView.as_view(), name='category-data'),
     path('api/category/history/', CategoryHistoryView.as_view(), name='category-history'),
     path('api/category/history/line-chart/', CategoryHistoryLineChartView.as_view(), name='category-history-line-chart'),

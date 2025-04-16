@@ -35,6 +35,21 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return user
 
 
+class ContactSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False)
+    inquiryType = serializers.CharField(max_length=300)
+    message = serializers.CharField()
+
+    def validate(self, data):
+        request = self.context.get('request')
+        user = request.user if request else None
+
+        if not user or not user.is_authenticated:
+            if not data.get('email'):
+                raise serializers.ValidationError("Email is required for unauthenticated users.")
+        return data
+
+
 class InvitedUserSignInSerializer(serializers.ModelSerializer):
     token = serializers.UUIDField(write_only=True)
 

@@ -32,6 +32,16 @@ class SendEmail:
             subject = 'Budget Goal'
             html_message = render_to_string('budget_goal_failed.html', data)
             text_message = render_to_string('budget_goal_failed.txt', data)
+        elif message_type == 'ContactForm':
+            subject = f"New Contact Form Submission - {data.get('inquiry_type', 'General')}"
+            sender_email = data.get('email', 'Anonymous')
+            user_message = data.get('message', '')
+            text_message = f"From: {sender_email}\n\nMessage:\n{user_message}"
+            html_message = f"""
+                <p><strong>From:</strong> {sender_email}</p>
+                <p><strong>Message:</strong></p>
+                <p>{user_message.replace('\n', '<br>')}</p>
+            """
 
         from_email = settings.EMAIL_HOST_USER
         recipient_list = [recipient]

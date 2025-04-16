@@ -24,7 +24,7 @@ from .models import User, Family, Category, Budget, Transaction, Account, Balanc
 from .serializers import UserSerializer, UserCreateSerializer, FamilySerializer, CategorySerializer, BudgetSerializer, \
     TransactionSerializer, \
     AccountSerializer, ReportDashboardSerializer, SavingsGoalSerializer, BudgetGoalSerializer, \
-    InvitedUserCreateSerializer, InvitedUserSignInSerializer
+    InvitedUserCreateSerializer, InvitedUserSignInSerializer, ContactSerializer
 
 
 class LoginView(TokenObtainPairView):
@@ -44,6 +44,35 @@ class LoginView(TokenObtainPairView):
 
         return response
 
+
+class ContactView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = ContactSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            user = request.user if request.user.is_authenticated else None
+
+            if user and user.email:
+                email = user.email
+            else:
+                email = serializer.validated_data.get('email')
+
+            inquiry_type = serializer.validated_data.get('inquiryType')
+            message = serializer.validated_data.get('message')
+
+            print(f"Contact Inquiry from {email}: [{inquiry_type}] {message}")
+
+            mailer = SendEmail()
+            mailer.send_mail(
+                recipient=settings.SUPPORT_EMAIL,
+                message_type='ContactForm',
+                data={
+                    'email': email,
+                    'inquiry_type': inquiry_type,
+                    'message': message,
+                }
+            )
 
 class UserCreateView(APIView):
     permission_classes = [AllowAny]
