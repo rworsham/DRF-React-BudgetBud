@@ -58,7 +58,7 @@ REST_FRAMEWORK = {
 }
 
 SESSION_COOKIE_SECURE = True
-
+SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL')
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST')
 EMAIL_PORT = os.getenv('EMAIL_PORT')

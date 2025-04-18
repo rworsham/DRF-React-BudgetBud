@@ -1,5 +1,4 @@
-from unicodedata import category
-
+from django.conf import settings
 from rest_framework import generics, viewsets
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.response import Response
@@ -73,7 +72,9 @@ class ContactView(APIView):
                     'message': message,
                 }
             )
-
+            return Response(status=200)
+        else:
+            return Response(serializer.errors,status=400)
 class UserCreateView(APIView):
     permission_classes = [AllowAny]
 
