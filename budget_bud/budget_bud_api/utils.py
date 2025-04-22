@@ -40,7 +40,7 @@ class SendEmail:
             html_message = f"""
                 <p><strong>From:</strong> {sender_email}</p>
                 <p><strong>Message:</strong></p>
-                <p>{user_message.replace('\n', '<br>')}</p>
+                <p>{user_message.replace('\\n', '<br>')}</p>
             """
 
         from_email = settings.EMAIL_HOST_USER
