@@ -37,11 +37,12 @@ class SendEmail:
             sender_email = data.get('email', 'Anonymous')
             user_message = data.get('message', '')
             text_message = f"From: {sender_email}\n\nMessage:\n{user_message}"
+            html_user_message = user_message.replace('\n', '<br>')
             html_message = f"""
-                <p><strong>From:</strong> {sender_email}</p>
-                <p><strong>Message:</strong></p>
-                <p>{user_message.replace('\\n', '<br>')}</p>
-            """
+                    <p><strong>From:</strong> {sender_email}</p>
+                    <p><strong>Message:</strong></p>
+                    <p>{html_user_message}</p>
+                """
 
         from_email = settings.EMAIL_HOST_USER
         recipient_list = [recipient]
