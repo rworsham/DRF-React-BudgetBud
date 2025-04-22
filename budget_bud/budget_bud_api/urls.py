@@ -7,7 +7,7 @@ from .views import UserListCreateView, UserCreateView, UserRetrieveUpdateDestroy
     TransactionPieChartViewSet, BudgetTransactionView, FamilyCreateViewSet, AccountsOverviewReportView, UserReportsView, \
     ReportChoices, AccountHistory, SavingsGoalView, ProfileView, BudgetGoalView, BudgetHistoryView, \
     FamilyAddMemberViewSet, LoginView, FamilyOverviewView, FamilyHistoryView, CategoryDataView, CategoryHistoryView, \
-    CategoryHistoryLineChartView
+    CategoryHistoryLineChartView, ContactView
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename="category")
