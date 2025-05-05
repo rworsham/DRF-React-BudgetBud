@@ -1,0 +1,7 @@
+services:
+  - type: worker
+    name: scheduler-worker
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python manage.py runapscheduler
